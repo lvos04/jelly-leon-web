@@ -32,4 +32,5 @@
 
 - Bekend voor 12.x: upstream v12.4 voegt `workflow_run.yml` toe dat `JF_BOT_TOKEN` en `CLOUDFLARE_*` zonder guard
   doorgeeft (gemeten, 10 bevindingen) → guard-patch nodig vóór overname (ADR-0006).
-- Echte GitHub-runs: **NIET GEVALIDEERD** (lokaal actionlint + `workflow_check.py`).
+- `jelly-leon-web-ci.yml` draaide op GitHub (run 42601333719, geslaagd) zonder dat een upstream-workflow afging op de
+  fork-branch `ccr-c133d7a0-kuz1cv` (alleen "Jelly Leon Web CI" verscheen). `upstream-sync.yml`: NIET GEVALIDEERD.

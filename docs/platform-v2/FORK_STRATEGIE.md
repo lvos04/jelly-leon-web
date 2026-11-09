@@ -138,7 +138,7 @@ De ID's JLW-0001…0003 zijn een planning; ze worden pas in het register opgenom
 | productiebuild + es-check | job *build* | geslaagd (2 upstream-groottewaarschuwingen), 2317 bestanden, ES5 in orde |
 | forkregels + 31 tool-tests | job *forkregels* | geslaagd |
 | web-client-smoketest | job *web-e2e* | fork 21/21, stock 21/21 (Sim-getest) |
-| echte GitHub-runs | — | **NIET GEVALIDEERD** (nog niet op GitHub uitgevoerd) |
+| GitHub-runs | Actions | `jelly-leon-web-ci.yml`: run 42601333719 op `a076efb74` **geslaagd** (7/7 jobs, smoketest 21/21); `upstream-sync.yml`: **NIET GEVALIDEERD** (alleen vanaf de standaardbranch) |
 
 ## 9. Licentie (GPL)
 

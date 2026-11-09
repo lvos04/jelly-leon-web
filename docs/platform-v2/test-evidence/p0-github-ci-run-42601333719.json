@@ -1,0 +1,24 @@
+{
+  "workflow": "Jelly Leon Web CI (.github/workflows/jelly-leon-web-ci.yml)",
+  "run": "https://github.com/lvos04/jelly-leon-web/actions/runs/42601333719",
+  "trigger": "push naar ccr-c133d7a0-kuz1cv",
+  "commit": "a076efb74f89861df403a14195283c0447c44383",
+  "gestart_utc": "2026-11-09T10:30:17Z",
+  "beeindigd_utc": "2026-11-09T10:37:39Z",
+  "resultaat": "success",
+  "jobs": [
+    {"job": "Forkregels (patchregister, identiteit, workflows, tool-tests)", "resultaat": "success", "detail": "forkconsistentie in orde (jellyfin-web 10.11.11, forkversie 10.11.11-jl.0), patchregister in orde (0 core-patches), workflows in orde (9 upstream bewaakt, 2 eigen vastgezet), pytest 31 geslaagd, actionlint zonder meldingen"},
+    {"job": "Upstream-kwaliteit (lint)", "resultaat": "success", "detail": "eslint 0 fouten, 103 waarschuwingen"},
+    {"job": "Upstream-kwaliteit (stylelint)", "resultaat": "success", "detail": ""},
+    {"job": "Upstream-kwaliteit (build:check)", "resultaat": "success", "detail": "tsc --noEmit"},
+    {"job": "Upstream-kwaliteit (test)", "resultaat": "success", "detail": "vitest 12 bestanden, 160/160"},
+    {"job": "Productiebuild + artefact", "resultaat": "success", "detail": "webpack 5.99.9 met 2 upstream-groottewaarschuwingen; es-check in orde; artefact jelly-leon-web-10.11.11-jl.0-a076efb74f89.tar.gz (2317 bestanden, Node v22.23.4, npm 10.9.9); npm ci zonder omwegen (GitHub-archief van classlist.js bereikbaar op de runner)"},
+    {"job": "Web-client-smoketest (Chromium + officiële server, simulator)", "resultaat": "success", "detail": "sha256-controle van het artefact OK; web_smoke.py --modus fork tegen jellyfin/jellyfin:10.11.11@sha256:aefb67e6…: 21/21 stappen geslaagd"}
+  ],
+  "artefacten": [
+    {"naam": "jelly-leon-web-dist", "bytes": 34861864, "digest": "sha256:7ecde7739e7aee22445c83374cb54307d4895e96b43d37bbe5924f578fe4f568"},
+    {"naam": "web-smoke", "bytes": 54563, "digest": "sha256:e686f6a9cf2eb227c258accb8014c36de90c5935dedcf5effc4eb07bd033ea49"}
+  ],
+  "niet_uitgevoerd": "upstream-sync.yml (scheduled/handmatig alleen vanaf de standaardbranch); echte clients/tv's (D15); echte NAS",
+  "validatie": "Sim-getest (GitHub-runner + headless Chromium + officiële serverimage; geen echte apparaten)"
+}

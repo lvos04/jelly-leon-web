@@ -82,9 +82,17 @@ NIET GEVALIDEERD (hardware, D15).
 
 ## 4. CI op GitHub
 
-`.github/workflows/jelly-leon-web-ci.yml` en `upstream-sync.yml` zijn lokaal met actionlint en `workflow_check.py`
-gecontroleerd, maar **nog niet op GitHub uitgevoerd** (NIET GEVALIDEERD). `upstream-sync.yml` draait als scheduled
-workflow pas vanaf de standaardbranch.
+Beide eigen workflows zijn lokaal met actionlint en `workflow_check.py` gecontroleerd.
+
+- **`jelly-leon-web-ci.yml` is op GitHub uitgevoerd en geslaagd**: run
+  [42601333719](https://github.com/lvos04/jelly-leon-web/actions/runs/42601333719) op commit `a076efb74`
+  (push naar `ccr-c133d7a0-kuz1cv`, 10:30–10:37 UTC). Alle 7 jobs groen: forkregels (31 tests), eslint (0 fouten),
+  stylelint, tsc, vitest 160/160, productiebuild + es-check + artefact
+  `jelly-leon-web-10.11.11-jl.0-a076efb74f89.tar.gz` (Node v22.23.4, npm 10.9.9, 2317 bestanden; `npm ci` zonder
+  omweg — het GitHub-archief is daar bereikbaar) en de web-client-smoketest op dat artefact **21/21**.
+  Samenvatting: `test-evidence/p0-github-ci-run-42601333719.json`.
+- **`upstream-sync.yml` is nog niet op GitHub uitgevoerd** (NIET GEVALIDEERD): scheduled en handmatige runs kunnen pas
+  vanaf de standaardbranch.
 
 ## 5. Syncproef naar upstream v12.4 (tijdelijke kloon, niets gepusht)
 

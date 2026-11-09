@@ -15,7 +15,8 @@ gebaseerd op Jellyfin, met dank aan alle [upstream-bijdragers](CONTRIBUTORS.md).
   [`.github/workflows/upstream-sync.yml`](.github/workflows/upstream-sync.yml).
 - Lokaal gemeten: `npm ci`, eslint, stylelint, tsc, vitest (160/160), productiebuild, es-check en de
   web-client-smoketest (21/21, Chromium tegen de officiële server) — zie [`BOUWVERIFICATIE_P0.md`](docs/platform-v2/BOUWVERIFICATIE_P0.md).
-- Niet gevalideerd: echte tv's/telefoons (D15), echte NAS, echte GitHub-runs.
+- Jelly Leon Web-CI op GitHub geslaagd (run 42601333719, 7/7 jobs, smoketest 21/21 op een GitHub-runner).
+- Niet gevalideerd: echte tv's/telefoons (D15), echte NAS, een echte run van `upstream-sync.yml`.
 
 ## Documenten
 
