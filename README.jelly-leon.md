@@ -35,12 +35,14 @@ npm ci                      # Node 22.23.4 (CI); upstream .nvmrc zegt 20 (EOL), 
 npm test                    # vitest
 npm run lint && npm run stylelint && npm run build:check
 npm run build:production    # → dist/
-python3.12 -m venv .venv && .venv/bin/pip install -r tools/jelly-leon-web/requirements-dev.txt
-.venv/bin/python tools/jelly-leon-web/patch_register_check.py
-.venv/bin/python tools/jelly-leon-web/check_fork_consistency.py
-.venv/bin/python tools/jelly-leon-web/workflow_check.py --overzicht
-.venv/bin/python -m pytest -q -c tools/jelly-leon-web/pytest.ini tools/jelly-leon-web/tests
-.venv/bin/python tools/jelly-leon-web/e2e/web_smoke.py --modus fork --uitvoer /tmp/web-smoke   # vraagt Docker + Chromium
+# venv buiten de repo: upstream-eslint lint "./" en negeert geen .venv in de werkmap
+python3.12 -m venv ~/.venvs/jelly-leon-web && ~/.venvs/jelly-leon-web/bin/pip install -r tools/jelly-leon-web/requirements-dev.txt
+PY=~/.venvs/jelly-leon-web/bin/python
+$PY tools/jelly-leon-web/patch_register_check.py
+$PY tools/jelly-leon-web/check_fork_consistency.py
+$PY tools/jelly-leon-web/workflow_check.py --overzicht
+$PY -m pytest -q -c tools/jelly-leon-web/pytest.ini tools/jelly-leon-web/tests
+$PY tools/jelly-leon-web/e2e/web_smoke.py --modus fork --uitvoer /tmp/web-smoke   # vraagt Docker + Chromium
 ```
 
 Installatie gebeurt nooit vanuit deze repo: de webclient zit in de standaard TrueNAS Custom App `jelly-leon`

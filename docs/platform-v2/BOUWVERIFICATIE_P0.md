@@ -26,8 +26,10 @@ Zware stappen draaiden één voor één met `nice -n 10`. **Niets hiervan is op 
 | 15 | syncproef v12.4 (tijdelijke kloon; §5) | 2 / 0 / 1 | merge: 30 conflicten; herbasis: 0 conflicten maar `workflow_check` en `npm ci` falen terecht | — |
 
 De ruwe rapporten staan in `docs/platform-v2/test-evidence/` (`p0-web-smoke/web-smoke-{fork,stock}.json`,
-schermafbeeldingen `p0-web-smoke/fork-*.jpg`, `p0-upstream-syncproef-v12.4.json`). Venv: `.venv` in de repo-root
-(alleen lokaal, uitgesloten via `.git/info/exclude`) met `tools/jelly-leon-web/requirements-dev.txt`.
+schermafbeeldingen `p0-web-smoke/fork-*.jpg`, `p0-upstream-syncproef-v12.4.json`). Python-venv met
+`tools/jelly-leon-web/requirements-dev.txt`; `.venv/bin/python` in de tabel = die venv. Let op: zet de venv **buiten**
+de repo (bv. `~/.venvs/jelly-leon-web`), want upstream-eslint lint `./` en negeert geen `.venv` in de werkmap; de
+eindcontrole (§6) is daarom met een venv buiten de repo gedraaid.
 
 ## 2. Bijzonderheid: GitHub-archief van `classlist.js` geblokkeerd in deze bouwomgeving
 
@@ -95,3 +97,19 @@ workflow pas vanaf de standaardbranch.
    `workflow_run.yml` geeft `JF_BOT_TOKEN`/`CLOUDFLARE_*` zonder repository-guard door, 10 bevindingen) en
    **`npm ci` faalt** (`EBADENGINE`: v12.4 eist node ≥ 24.0.0, npm ≥ 11.0.0). De workflow zou dus terecht falen (EX48).
 5. v12.4 bouwen/testen is niet uitgevoerd (Node 24 niet aanwezig) — NIET GEVALIDEERD.
+
+## 6. Eindcontrole op de definitieve boom (na alle commits, venv buiten de repo)
+
+| Commando | Exit | Uitkomst |
+|---|---|---|
+| `check_fork_consistency.py` | 0 | basis v10.11.11, forkversie 10.11.11-jl.0, identiteit jellyfin-web 10.11.11, EVIDENCE.json geldig |
+| `patch_register_check.py` | 0 | 0 core-patches |
+| `workflow_check.py` | 0 | 9 upstream-workflows bewaakt, 2 eigen vastgezet |
+| `pytest -q -c tools/jelly-leon-web/pytest.ini tools/jelly-leon-web/tests` | 0 | 31 geslaagd |
+| `actionlint -shellcheck= …` (2 eigen workflows) | 0 | geen meldingen |
+| `npm run lint` | 0 | 0 fouten, 103 waarschuwingen (ongewijzigd t.o.v. §1) |
+| `npm test -- --maxWorkers=2` | 0 | 12 bestanden, 160/160 |
+| `npm run build:check` / `npm run stylelint` | 0 / 0 | geen fouten |
+
+De productiebuild en de smoketest (§1, §3) zijn niet opnieuw gedraaid: de webbroncode is sindsdien niet gewijzigd
+(alle latere commits raken alleen fork-eigen paden: docs, tools, workflows).
