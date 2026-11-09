@@ -1,0 +1,50 @@
+{
+  "workflow": "Jelly Leon Web CI (.github/workflows/jelly-leon-web-ci.yml)",
+  "run": "https://github.com/lvos04/jelly-leon-web/actions/runs/42652520494",
+  "trigger": "push naar ccr-c133d7a0-kuz1cv (contractronde 1.2)",
+  "commit": "c23ce1d7724d4ba01c6ec7642edd308dfdd29a2f",
+  "gestart_utc": "2026-11-09T16:13:12Z",
+  "beeindigd_utc": "2026-11-09T16:18:38Z",
+  "resultaat": "success",
+  "jobs": [
+    {
+      "job": "Forkregels (patchregister, identiteit, workflows, tool-tests)",
+      "resultaat": "success",
+      "detail": "forkconsistentie in orde (met de strengere §11-bewijsregels), patchregister in orde (0 core-patches), nieuwe stap drifttest: 'Contractkopieën in orde (online tegen GitHub): 2 bestanden byte-gelijk aan lvos04/ai-server-manager@8b54f3940', workflows in orde, pytest 67 geslaagd + 1 overgeslagen (vergelijking met een naastgelegen ai-server-manager-checkout, alleen lokaal), actionlint met shellcheck 0.11.0 zonder meldingen"
+    },
+    {
+      "job": "Upstream-kwaliteit (lint)",
+      "resultaat": "success",
+      "detail": "eslint 0 fouten, 103 upstream-waarschuwingen"
+    },
+    {
+      "job": "Upstream-kwaliteit (stylelint)",
+      "resultaat": "success",
+      "detail": ""
+    },
+    {
+      "job": "Upstream-kwaliteit (build:check)",
+      "resultaat": "success",
+      "detail": "tsc --noEmit"
+    },
+    {
+      "job": "Upstream-kwaliteit (test)",
+      "resultaat": "success",
+      "detail": "vitest 12 bestanden, 160/160"
+    },
+    {
+      "job": "Productiebuild + artefact",
+      "resultaat": "success",
+      "detail": "npm ci 1724 pakketten (Node v22.23.4, npm 10.9.9), productiebuild 2317 bestanden, es-check, artefact jelly-leon-web-dist (zip-sha256 40dbac1fac4c4b94…)"
+    },
+    {
+      "job": "Web-client-smoketest (Chromium + officiële server, simulator)",
+      "resultaat": "success",
+      "detail": "web_smoke.py --modus fork tegen jellyfin/jellyfin:10.11.11@sha256:aefb67e6…: 30/30 (incl. herstart, terugzetten en weer vooruit)"
+    }
+  ],
+  "waarschuwingen": [
+    "GitHub: actions/upload-artifact en actions/download-artifact v5.0.0 draaien nog op het afgeschafte Node.js 20 (geforceerd op Node 24) — daarna bijgewerkt naar v7.0.2 / v8.0.2 (commit f9f52fb19)."
+  ],
+  "validatie": "Sim-getest (GitHub-runner, headless Chromium + officiële serverimage; geen echte apparaten of NAS)"
+}
