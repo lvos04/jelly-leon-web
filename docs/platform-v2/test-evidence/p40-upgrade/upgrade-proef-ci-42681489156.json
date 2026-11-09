@@ -1,0 +1,611 @@
+{
+  "test": "upgradeproef 10.11.11 → 12.x met behoud van kijkgegevens (JLT-60/JLT-61 webdeel)",
+  "modus": "upgrade",
+  "server_image": "docker.io/jellyfin/jellyfin:10.11.11@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db → docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+  "basis_url": "http://127.0.0.1:38098",
+  "gestart_utc": "2026-11-09T19:21:27Z",
+  "beeindigd_utc": "2026-11-09T19:23:38Z",
+  "resultaat": "geslaagd",
+  "aantal_stappen": 46,
+  "geslaagd": 46,
+  "validatie": "Sim-getest (officiële images op digest + fork-build, headless Chromium; geen NAS, geen echte data)",
+  "feiten": {
+    "server_productnaam": "Jellyfin Server",
+    "server_versie": "10.11.11",
+    "web_index_sha256": "d06008c68ab653f91bdefc6aac3a4e654916b97618750403922762b235468f99",
+    "testitem_naam": "01 - Sinus 440 Hz",
+    "browser": "Chromium 153.0.8010.12 (headless)"
+  },
+  "stappen": [
+    {
+      "stap": "server gezond",
+      "geslaagd": true,
+      "detail": "GET /health → Healthy",
+      "tijd_utc": "2026-11-09T19:21:38Z"
+    },
+    {
+      "stap": "technische identiteit ongewijzigd",
+      "geslaagd": true,
+      "detail": "ProductName='Jellyfin Server', Version='10.11.11' (verwacht 10.11.11)",
+      "tijd_utc": "2026-11-09T19:21:38Z"
+    },
+    {
+      "stap": "stock-webclient wordt geserveerd",
+      "geslaagd": true,
+      "detail": "HTTP 200",
+      "tijd_utc": "2026-11-09T19:21:38Z"
+    },
+    {
+      "stap": "zichtbare naam 'Jellyfin' (stock: upstream ongewijzigd)",
+      "geslaagd": true,
+      "detail": "<title> = 'Jellyfin'; application-name = 'Jellyfin'; manifest name/short_name = 'Jellyfin'/'Jellyfin' (manifest HTTP 200)",
+      "tijd_utc": "2026-11-09T19:21:38Z"
+    },
+    {
+      "stap": "eerste-startwizard (API)",
+      "geslaagd": true,
+      "detail": "HTTP [204, 200, 204, 204, 204]",
+      "tijd_utc": "2026-11-09T19:21:39Z"
+    },
+    {
+      "stap": "beheerder logt in via API",
+      "geslaagd": true,
+      "detail": "HTTP 200",
+      "tijd_utc": "2026-11-09T19:21:39Z"
+    },
+    {
+      "stap": "bibliotheek 'Muziek' aanmaken",
+      "geslaagd": true,
+      "detail": "HTTP 204",
+      "tijd_utc": "2026-11-09T19:21:39Z"
+    },
+    {
+      "stap": "bibliotheekscan vindt het testnummer",
+      "geslaagd": true,
+      "detail": "item dbd1b4c93b1c7df92633765df6054ff3",
+      "tijd_utc": "2026-11-09T19:21:40Z"
+    },
+    {
+      "stap": "kinderprofiel zonder bibliotheektoegang",
+      "geslaagd": true,
+      "detail": "aanmaken HTTP 200, beleid HTTP 204 (EnableAllFolders=false)",
+      "tijd_utc": "2026-11-09T19:21:40Z"
+    },
+    {
+      "stap": "zoeken respecteert server-ACL (API)",
+      "geslaagd": true,
+      "detail": "beheerder 1 resultaat, kinderprofiel 0 (verwacht 1 / 0)",
+      "tijd_utc": "2026-11-09T19:21:41Z"
+    },
+    {
+      "stap": "zonder token geweigerd",
+      "geslaagd": true,
+      "detail": "GET /Users/<id> zonder token → HTTP 401 (verwacht 401)",
+      "tijd_utc": "2026-11-09T19:21:41Z"
+    },
+    {
+      "stap": "kijkgegevens gezet via de officiële API (oude server, 5 gebruikers)",
+      "geslaagd": true,
+      "detail": "HTTP [200, 204, 200, 204, 200, 200, 200, 200, 200]: beheerder 2× gezien + favoriet + beoordeling 8; gast hervatpunt 1 s + taal-/ondertitelvoorkeuren nld; tiener gezien + leeftijdsgrens 13 + tag 'horror' geblokkeerd; ouder favoriet",
+      "tijd_utc": "2026-11-09T19:21:41Z"
+    },
+    {
+      "stap": "VÓÓR (10.11.11): gezette kijkgegevens aanwezig",
+      "geslaagd": true,
+      "detail": "beheerder {'Played': True, 'PlayCount': 2, 'PlaybackPositionTicks': 0, 'IsFavorite': True, 'Rating': 8.0, 'LastPlayedDate': '2026-11-01T20:15:00Z'}; gast hervatpunt 10000000 ticks; voorkeuren {'AudioLanguagePreference': 'nld', 'SubtitleLanguagePreference': 'nld', 'SubtitleMode': 'Always', 'RememberAudioSelections': True, 'RememberSubtitleSelections': True}",
+      "tijd_utc": "2026-11-09T19:21:42Z"
+    },
+    {
+      "stap": "kopie van /config vóór de migratie (snapshot)",
+      "geslaagd": true,
+      "detail": "jellyfin.db sha256 0a0432a93ff4cb89…",
+      "tijd_utc": "2026-11-09T19:22:12Z"
+    },
+    {
+      "stap": "nieuwe server migreert dezelfde /config en wordt gezond",
+      "geslaagd": true,
+      "detail": "versie '12.4.0' (verwacht 12.4.0); fork-build gemount",
+      "tijd_utc": "2026-11-09T19:22:20Z"
+    },
+    {
+      "stap": "beheerder logt na de upgrade in met hetzelfde wachtwoord",
+      "geslaagd": true,
+      "detail": "HTTP 200",
+      "tijd_utc": "2026-11-09T19:22:21Z"
+    },
+    {
+      "stap": "NA (12.x) = VÓÓR per gebruiker: gezien, aantal, datum, hervatpunt, favoriet, beoordeling, voorkeuren, rechten",
+      "geslaagd": true,
+      "detail": "sha256 vóór 68a660997cd57b2c…, na 68a660997cd57b2c…; 0 verschillen",
+      "tijd_utc": "2026-11-09T19:22:21Z"
+    },
+    {
+      "stap": "NA (12.x): gezette kijkgegevens aanwezig",
+      "geslaagd": true,
+      "detail": "beheerder {'Played': True, 'PlayCount': 2, 'PlaybackPositionTicks': 0, 'IsFavorite': True, 'Rating': 8.0, 'LastPlayedDate': '2026-11-01T20:15:00Z'}; gast hervatpunt 10000000 ticks; voorkeuren {'AudioLanguagePreference': 'nld', 'SubtitleLanguagePreference': 'nld', 'SubtitleMode': 'Always', 'RememberAudioSelections': True, 'RememberSubtitleSelections': True}",
+      "tijd_utc": "2026-11-09T19:22:21Z"
+    },
+    {
+      "stap": "[Modern] aanmeldpagina in het Nederlands (browser nl-NL)",
+      "geslaagd": true,
+      "detail": "gevonden: Meld je aan, Aanmelden, Gebruiker, Wachtwoord",
+      "tijd_utc": "2026-11-09T19:22:25Z"
+    },
+    {
+      "stap": "[Modern] fout wachtwoord geweigerd (negatieve test)",
+      "geslaagd": true,
+      "detail": "melding zichtbaar, url /login?serverid=8e2d703fcd644fc9a1e3a2cff8036283&url=%2Fhome",
+      "tijd_utc": "2026-11-09T19:22:27Z"
+    },
+    {
+      "stap": "[Modern] inloggen → startscherm met bibliotheek",
+      "geslaagd": true,
+      "detail": "url /home",
+      "tijd_utc": "2026-11-09T19:22:29Z"
+    },
+    {
+      "stap": "[Modern] layout actief (standaard)",
+      "geslaagd": true,
+      "detail": "MUI-AppBar: 1, opgeslagen layout: None",
+      "tijd_utc": "2026-11-09T19:22:29Z"
+    },
+    {
+      "stap": "[Modern] technische identiteit webclient ongewijzigd ('Jellyfin Web')",
+      "geslaagd": true,
+      "detail": "/Sessions (HTTP 200): Jellyfin Web 12.4.0; localStorage jellyfin_credentials aanwezig",
+      "tijd_utc": "2026-11-09T19:22:29Z"
+    },
+    {
+      "stap": "[Modern] zoeken vindt het testnummer (UI)",
+      "geslaagd": true,
+      "detail": "zoekterm 'Sinus' → 'Sinus 440 Hz'",
+      "tijd_utc": "2026-11-09T19:22:30Z"
+    },
+    {
+      "stap": "[Modern] detailpagina → afspelen start een stream",
+      "geslaagd": true,
+      "detail": "GET /Audio/<id>/… → HTTP 200 (verwacht 200/206)",
+      "tijd_utc": "2026-11-09T19:22:31Z"
+    },
+    {
+      "stap": "[Modern] kinderprofiel ziet de titel niet in zoekresultaten (UI)",
+      "geslaagd": true,
+      "detail": "melding 'Geen resultaten gevonden', geen testnummer zichtbaar",
+      "tijd_utc": "2026-11-09T19:22:34Z"
+    },
+    {
+      "stap": "[Modern] startscherm 360px zonder horizontale overloop",
+      "geslaagd": true,
+      "detail": "scrollWidth 360 px, venster 360 px",
+      "tijd_utc": "2026-11-09T19:22:36Z"
+    },
+    {
+      "stap": "[Modern] startscherm 390px zonder horizontale overloop",
+      "geslaagd": true,
+      "detail": "scrollWidth 390 px, venster 390 px",
+      "tijd_utc": "2026-11-09T19:22:37Z"
+    },
+    {
+      "stap": "[Modern] startscherm 768px zonder horizontale overloop",
+      "geslaagd": true,
+      "detail": "scrollWidth 768 px, venster 768 px",
+      "tijd_utc": "2026-11-09T19:22:39Z"
+    },
+    {
+      "stap": "[Modern] startscherm 1440px zonder horizontale overloop",
+      "geslaagd": true,
+      "detail": "scrollWidth 1440 px, venster 1440 px",
+      "tijd_utc": "2026-11-09T19:22:40Z"
+    },
+    {
+      "stap": "[Legacy] aanmeldpagina in het Nederlands (browser nl-NL)",
+      "geslaagd": true,
+      "detail": "gevonden: Meld je aan, Aanmelden, Gebruiker, Wachtwoord",
+      "tijd_utc": "2026-11-09T19:22:46Z"
+    },
+    {
+      "stap": "[Legacy] fout wachtwoord geweigerd (negatieve test)",
+      "geslaagd": true,
+      "detail": "melding zichtbaar, url /login?serverid=8e2d703fcd644fc9a1e3a2cff8036283&url=%2Fhome",
+      "tijd_utc": "2026-11-09T19:22:48Z"
+    },
+    {
+      "stap": "[Legacy] inloggen → startscherm met bibliotheek",
+      "geslaagd": true,
+      "detail": "url /home",
+      "tijd_utc": "2026-11-09T19:22:50Z"
+    },
+    {
+      "stap": "[Legacy] layout actief (desktop-legacy)",
+      "geslaagd": true,
+      "detail": "MUI-AppBar: 0, opgeslagen layout: 'desktop-legacy'",
+      "tijd_utc": "2026-11-09T19:22:50Z"
+    },
+    {
+      "stap": "[Legacy] technische identiteit webclient ongewijzigd ('Jellyfin Web')",
+      "geslaagd": true,
+      "detail": "/Sessions (HTTP 200): Jellyfin Web 12.4.0; localStorage jellyfin_credentials aanwezig",
+      "tijd_utc": "2026-11-09T19:22:50Z"
+    },
+    {
+      "stap": "[Legacy] zoeken vindt het testnummer (UI)",
+      "geslaagd": true,
+      "detail": "zoekterm 'Sinus' → 'Sinus 440 Hz'",
+      "tijd_utc": "2026-11-09T19:22:50Z"
+    },
+    {
+      "stap": "[Legacy] detailpagina → afspelen start een stream",
+      "geslaagd": true,
+      "detail": "GET /Audio/<id>/… → HTTP 200 (verwacht 200/206)",
+      "tijd_utc": "2026-11-09T19:22:51Z"
+    },
+    {
+      "stap": "[Legacy] kinderprofiel ziet de titel niet in zoekresultaten (UI)",
+      "geslaagd": true,
+      "detail": "melding 'Geen resultaten gevonden', geen testnummer zichtbaar",
+      "tijd_utc": "2026-11-09T19:22:56Z"
+    },
+    {
+      "stap": "[Legacy] startscherm 360px zonder horizontale overloop",
+      "geslaagd": true,
+      "detail": "scrollWidth 360 px, venster 360 px",
+      "tijd_utc": "2026-11-09T19:22:57Z"
+    },
+    {
+      "stap": "[Legacy] startscherm 390px zonder horizontale overloop",
+      "geslaagd": true,
+      "detail": "scrollWidth 390 px, venster 390 px",
+      "tijd_utc": "2026-11-09T19:22:59Z"
+    },
+    {
+      "stap": "[Legacy] startscherm 768px zonder horizontale overloop",
+      "geslaagd": true,
+      "detail": "scrollWidth 768 px, venster 768 px",
+      "tijd_utc": "2026-11-09T19:23:00Z"
+    },
+    {
+      "stap": "[Legacy] startscherm 1440px zonder horizontale overloop",
+      "geslaagd": true,
+      "detail": "scrollWidth 1440 px, venster 1440 px",
+      "tijd_utc": "2026-11-09T19:23:02Z"
+    },
+    {
+      "stap": "[Modern] gast krijgt 'Hervatten' op de detailpagina (hervatpunt bewaard)",
+      "geslaagd": true,
+      "detail": "knop 'opnieuw afspelen' zichtbaar; afspeelknop-titel 'Hervatten' (verwacht 'Hervatten')",
+      "tijd_utc": "2026-11-09T19:23:05Z"
+    },
+    {
+      "stap": "[Legacy] gast krijgt 'Hervatten' op de detailpagina (hervatpunt bewaard)",
+      "geslaagd": true,
+      "detail": "knop 'opnieuw afspelen' zichtbaar; afspeelknop-titel 'Hervatten' (verwacht 'Hervatten')",
+      "tijd_utc": "2026-11-09T19:23:11Z"
+    },
+    {
+      "stap": "terugzetten (JLT-61 a): oude image + kopie van vóór de migratie = VÓÓR, stream speelt",
+      "geslaagd": true,
+      "detail": "jellyfin.db van de kopie byte-gelijk aan vóór de migratie: True; gezond True; 0 verschillen; stream HTTP 200",
+      "tijd_utc": "2026-11-09T19:23:21Z"
+    },
+    {
+      "stap": "negatief (JLT-61 b), gemeten upstream-gedrag: oude stock-image start op de gemigreerde /config; geen stille schade (12.x daarna = VÓÓR)",
+      "geslaagd": true,
+      "detail": "oude image gezond binnen 90 s: True; container running 0; aanmelden HTTP 500; 0 verschillen; Sim-mislukt: de oude stock-image meldt zich gezond maar is onbruikbaar (aanmelden HTTP 500), zonder duidelijke melding; geen blijvende schade (12.x daarna = VÓÓR)",
+      "tijd_utc": "2026-11-09T19:23:38Z"
+    }
+  ],
+  "voor": {
+    "gebruikers": {
+      "jl-beheer": {
+        "beleid": {
+          "IsAdministrator": true,
+          "IsDisabled": false,
+          "EnableAllFolders": true,
+          "EnabledFolders": [],
+          "MaxParentalRating": null,
+          "BlockedTags": [],
+          "EnableContentDownloading": true,
+          "EnableRemoteAccess": true
+        },
+        "voorkeuren": {
+          "AudioLanguagePreference": null,
+          "SubtitleLanguagePreference": "",
+          "SubtitleMode": "Default",
+          "RememberAudioSelections": true,
+          "RememberSubtitleSelections": true
+        },
+        "kijkgegevens": {
+          "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav": {
+            "Played": true,
+            "PlayCount": 2,
+            "PlaybackPositionTicks": 0,
+            "IsFavorite": true,
+            "Rating": 8.0,
+            "LastPlayedDate": "2026-11-01T20:15:00Z"
+          }
+        }
+      },
+      "jl-gast": {
+        "beleid": {
+          "IsAdministrator": false,
+          "IsDisabled": false,
+          "EnableAllFolders": true,
+          "EnabledFolders": [],
+          "MaxParentalRating": null,
+          "BlockedTags": [],
+          "EnableContentDownloading": true,
+          "EnableRemoteAccess": true
+        },
+        "voorkeuren": {
+          "AudioLanguagePreference": "nld",
+          "SubtitleLanguagePreference": "nld",
+          "SubtitleMode": "Always",
+          "RememberAudioSelections": true,
+          "RememberSubtitleSelections": true
+        },
+        "kijkgegevens": {
+          "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav": {
+            "Played": false,
+            "PlayCount": 0,
+            "PlaybackPositionTicks": 10000000,
+            "IsFavorite": false,
+            "Rating": null,
+            "LastPlayedDate": null
+          }
+        }
+      },
+      "jl-kind": {
+        "beleid": {
+          "IsAdministrator": false,
+          "IsDisabled": false,
+          "EnableAllFolders": false,
+          "EnabledFolders": [],
+          "MaxParentalRating": null,
+          "BlockedTags": [],
+          "EnableContentDownloading": true,
+          "EnableRemoteAccess": true
+        },
+        "voorkeuren": {
+          "AudioLanguagePreference": null,
+          "SubtitleLanguagePreference": "",
+          "SubtitleMode": "Default",
+          "RememberAudioSelections": true,
+          "RememberSubtitleSelections": true
+        },
+        "kijkgegevens": {
+          "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav": {
+            "fout": "HTTP 404"
+          }
+        }
+      },
+      "jl-ouder": {
+        "beleid": {
+          "IsAdministrator": false,
+          "IsDisabled": false,
+          "EnableAllFolders": true,
+          "EnabledFolders": [],
+          "MaxParentalRating": null,
+          "BlockedTags": [],
+          "EnableContentDownloading": true,
+          "EnableRemoteAccess": true
+        },
+        "voorkeuren": {
+          "AudioLanguagePreference": null,
+          "SubtitleLanguagePreference": "",
+          "SubtitleMode": "Default",
+          "RememberAudioSelections": true,
+          "RememberSubtitleSelections": true
+        },
+        "kijkgegevens": {
+          "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav": {
+            "Played": false,
+            "PlayCount": 0,
+            "PlaybackPositionTicks": 0,
+            "IsFavorite": true,
+            "Rating": null,
+            "LastPlayedDate": null
+          }
+        }
+      },
+      "jl-tiener": {
+        "beleid": {
+          "IsAdministrator": false,
+          "IsDisabled": false,
+          "EnableAllFolders": true,
+          "EnabledFolders": [],
+          "MaxParentalRating": 13,
+          "BlockedTags": [
+            "horror"
+          ],
+          "EnableContentDownloading": true,
+          "EnableRemoteAccess": true
+        },
+        "voorkeuren": {
+          "AudioLanguagePreference": null,
+          "SubtitleLanguagePreference": "",
+          "SubtitleMode": "Default",
+          "RememberAudioSelections": true,
+          "RememberSubtitleSelections": true
+        },
+        "kijkgegevens": {
+          "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav": {
+            "Played": true,
+            "PlayCount": 1,
+            "PlaybackPositionTicks": 0,
+            "IsFavorite": false,
+            "Rating": null,
+            "LastPlayedDate": "2026-10-30T19:00:00Z"
+          }
+        }
+      }
+    },
+    "items": [
+      "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav"
+    ]
+  },
+  "voor_sha256": "68a660997cd57b2cbfba6301df004775d7b522b0e880c0726e74db2d6ca4890b",
+  "jellyfin_db_sha256_voor": "0a0432a93ff4cb89df59e27202d8927cc61701454b37c01488702298a7d5ed7f",
+  "na": {
+    "gebruikers": {
+      "jl-beheer": {
+        "beleid": {
+          "IsAdministrator": true,
+          "IsDisabled": false,
+          "EnableAllFolders": true,
+          "EnabledFolders": [],
+          "MaxParentalRating": null,
+          "BlockedTags": [],
+          "EnableContentDownloading": true,
+          "EnableRemoteAccess": true
+        },
+        "voorkeuren": {
+          "AudioLanguagePreference": null,
+          "SubtitleLanguagePreference": "",
+          "SubtitleMode": "Default",
+          "RememberAudioSelections": true,
+          "RememberSubtitleSelections": true
+        },
+        "kijkgegevens": {
+          "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav": {
+            "Played": true,
+            "PlayCount": 2,
+            "PlaybackPositionTicks": 0,
+            "IsFavorite": true,
+            "Rating": 8.0,
+            "LastPlayedDate": "2026-11-01T20:15:00Z"
+          }
+        }
+      },
+      "jl-gast": {
+        "beleid": {
+          "IsAdministrator": false,
+          "IsDisabled": false,
+          "EnableAllFolders": true,
+          "EnabledFolders": [],
+          "MaxParentalRating": null,
+          "BlockedTags": [],
+          "EnableContentDownloading": true,
+          "EnableRemoteAccess": true
+        },
+        "voorkeuren": {
+          "AudioLanguagePreference": "nld",
+          "SubtitleLanguagePreference": "nld",
+          "SubtitleMode": "Always",
+          "RememberAudioSelections": true,
+          "RememberSubtitleSelections": true
+        },
+        "kijkgegevens": {
+          "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav": {
+            "Played": false,
+            "PlayCount": 0,
+            "PlaybackPositionTicks": 10000000,
+            "IsFavorite": false,
+            "Rating": null,
+            "LastPlayedDate": null
+          }
+        }
+      },
+      "jl-kind": {
+        "beleid": {
+          "IsAdministrator": false,
+          "IsDisabled": false,
+          "EnableAllFolders": false,
+          "EnabledFolders": [],
+          "MaxParentalRating": null,
+          "BlockedTags": [],
+          "EnableContentDownloading": true,
+          "EnableRemoteAccess": true
+        },
+        "voorkeuren": {
+          "AudioLanguagePreference": null,
+          "SubtitleLanguagePreference": "",
+          "SubtitleMode": "Default",
+          "RememberAudioSelections": true,
+          "RememberSubtitleSelections": true
+        },
+        "kijkgegevens": {
+          "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav": {
+            "fout": "HTTP 404"
+          }
+        }
+      },
+      "jl-ouder": {
+        "beleid": {
+          "IsAdministrator": false,
+          "IsDisabled": false,
+          "EnableAllFolders": true,
+          "EnabledFolders": [],
+          "MaxParentalRating": null,
+          "BlockedTags": [],
+          "EnableContentDownloading": true,
+          "EnableRemoteAccess": true
+        },
+        "voorkeuren": {
+          "AudioLanguagePreference": null,
+          "SubtitleLanguagePreference": "",
+          "SubtitleMode": "Default",
+          "RememberAudioSelections": true,
+          "RememberSubtitleSelections": true
+        },
+        "kijkgegevens": {
+          "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav": {
+            "Played": false,
+            "PlayCount": 0,
+            "PlaybackPositionTicks": 0,
+            "IsFavorite": true,
+            "Rating": null,
+            "LastPlayedDate": null
+          }
+        }
+      },
+      "jl-tiener": {
+        "beleid": {
+          "IsAdministrator": false,
+          "IsDisabled": false,
+          "EnableAllFolders": true,
+          "EnabledFolders": [],
+          "MaxParentalRating": 13,
+          "BlockedTags": [
+            "horror"
+          ],
+          "EnableContentDownloading": true,
+          "EnableRemoteAccess": true
+        },
+        "voorkeuren": {
+          "AudioLanguagePreference": null,
+          "SubtitleLanguagePreference": "",
+          "SubtitleMode": "Default",
+          "RememberAudioSelections": true,
+          "RememberSubtitleSelections": true
+        },
+        "kijkgegevens": {
+          "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav": {
+            "Played": true,
+            "PlayCount": 1,
+            "PlaybackPositionTicks": 0,
+            "IsFavorite": false,
+            "Rating": null,
+            "LastPlayedDate": "2026-10-30T19:00:00Z"
+          }
+        }
+      }
+    },
+    "items": [
+      "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav"
+    ]
+  },
+  "na_sha256": "68a660997cd57b2cbfba6301df004775d7b522b0e880c0726e74db2d6ca4890b",
+  "verschillen": [],
+  "jellyfin_db_sha256_kopie": "0a0432a93ff4cb89df59e27202d8927cc61701454b37c01488702298a7d5ed7f",
+  "terugzetten_verschillen": [],
+  "negatief_logstaart": ".Middleware.ServerStartupMessageMiddleware.Invoke(HttpContext httpContext, IServerApplicationHost serverApplicationHost, ILocalizationManager localizationManager)\n   at Jellyfin.Api.Middleware.WebSocketHandlerMiddleware.Invoke(HttpContext httpContext, IWebSocketManager webSocketManager)\n   at Jellyfin.Api.Middleware.IPBasedAccessValidationMiddleware.Invoke(HttpContext httpContext, INetworkManager networkManager)\n   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)\n   at Jellyfin.Api.Middleware.QueryStringDecodingMiddleware.Invoke(HttpContext httpContext)\n   at Swashbuckle.AspNetCore.ReDoc.ReDocMiddleware.Invoke(HttpContext httpContext)\n   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)\n   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)\n   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)\n   at Jellyfin.Api.Middleware.RobotsRedirectionMiddleware.Invoke(HttpContext httpContext)\n   at Jellyfin.Api.Middleware.LegacyEmbyRouteRewriteMiddleware.Invoke(HttpContext httpContext)\n   at Microsoft.AspNetCore.ResponseCompression.ResponseCompressionMiddleware.InvokeCore(HttpContext context)\n   at Jellyfin.Api.Middleware.ResponseTimeMiddleware.Invoke(HttpContext context, IServerConfigurationManager serverConfigurationManager)\n   at Jellyfin.Api.Middleware.ExceptionMiddleware.Invoke(HttpContext context)\n",
+  "negatief": {
+    "gezond": true,
+    "container": "running 0",
+    "aanmelden_http": 500,
+    "leesbaar": false,
+    "verschillen_via_oude_api": [],
+    "blijvende_verschillen_12x_daarna": []
+  },
+  "jlt61b": "Sim-mislukt: de oude stock-image meldt zich gezond maar is onbruikbaar (aanmelden HTTP 500), zonder duidelijke melding; geen blijvende schade (12.x daarna = VÓÓR)"
+}

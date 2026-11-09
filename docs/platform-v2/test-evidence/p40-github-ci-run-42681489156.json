@@ -1,0 +1,69 @@
+{
+ "workflow": "Jelly Leon Web CI (.github/workflows/jelly-leon-web-ci.yml)",
+ "run": "https://github.com/lvos04/jelly-leon-web/actions/runs/42681489156",
+ "trigger": "push naar ccr-c133d7a0-kuz1cv (P4-0, B03-014 webdeel)",
+ "commit": "cb8341c122f0915bfba05ba00d888864a6e0ec1b",
+ "gestart_utc": "2026-11-09T19:14:48Z",
+ "beeindigd_utc": "2026-11-09T19:23:41Z",
+ "resultaat": "success",
+ "jobs": [
+  {
+   "job": "Forkregels (patchregister, identiteit, workflows, tool-tests)",
+   "resultaat": "success",
+   "detail": "forkconsistentie (basis v12.4, zichtbare naam, toolchain), patchregister (JLW-0001, JLW-0002), drifttest contractkopie, workflow_check (10 upstream bewaakt, 2 eigen), upstream_gedrag_check (19 ankers), pytest 152 geslaagd + 1 overgeslagen (vergelijking met een naastgelegen ai-server-manager-checkout, alleen lokaal), actionlint"
+  },
+  {
+   "job": "Upstream-kwaliteit (lint)",
+   "resultaat": "success",
+   "detail": "Node 24.22.2: npm ci 1771 pakketten; eslint 0 fouten, 98 upstream-waarschuwingen"
+  },
+  {
+   "job": "Upstream-kwaliteit (stylelint)",
+   "resultaat": "success",
+   "detail": ""
+  },
+  {
+   "job": "Upstream-kwaliteit (build:check)",
+   "resultaat": "success",
+   "detail": "tsc --noEmit"
+  },
+  {
+   "job": "Upstream-kwaliteit (test)",
+   "resultaat": "success",
+   "detail": "vitest 12 bestanden, 164/164"
+  },
+  {
+   "job": "Productiebuild + artefact (in de Node-image op digest)",
+   "resultaat": "success",
+   "detail": "container node:24.22.2-bookworm-slim@sha256:01d566e8…; npm ci 1771 pakketten; webpack 5.109.0 (2 upstream-groottewaarschuwingen); es-check; 2348 bestanden; bouwinfo node v24.22.2, npm 11.19.1"
+  },
+  {
+   "job": "Web-client-smoketest (Chromium + officiële server 12.4, Modern + Legacy, simulator)",
+   "resultaat": "success",
+   "detail": "fork 45/45 tegen jellyfin/jellyfin:12.4@sha256:fea863d0…, Chromium 153.0.8010.12"
+  },
+  {
+   "job": "Upgradeproef 10.11.11 → 12.4 met behoud van kijkgegevens (simulator)",
+   "resultaat": "success",
+   "detail": "46/46: 5 gebruikers, VÓÓR = NA (0 verschillen, sha256 gelijk), browser Modern + Legacy, gast krijgt 'Hervatten', terugzetten met kopie (jellyfin.db byte-gelijk, 0 verschillen, stream 200); negatieve proef gemeten met --negatief-verwacht start: oude stock-image gezond maar aanmelden HTTP 500, geen blijvende schade → JLT-61 (b) Sim-mislukt (test-evidence/p40-upgrade/upgrade-proef-ci-42681489156.json)"
+  }
+ ],
+ "eerdere_runs": [
+  {
+   "run": 42674062638,
+   "commit": "0e3352ca9",
+   "uitkomst": "poging 1 en 2 mislukt zonder dat jobs startten tijdens de GitHub-storing 'Incident with Actions and Checks API' (githubstatus.com, 2026-11-09 18:12Z); poging 3 geslaagd, 7/7 jobs (fork 45/45)"
+  },
+  {
+   "run": 42678478921,
+   "commit": "8803546e9",
+   "uitkomst": "mislukt: upgradeproef 43/44 — de negatieve proef (oude image op gemigreerde data) eiste een weigering; de stock-image start wel"
+  },
+  {
+   "run": 42680117590,
+   "commit": "60a695444",
+   "uitkomst": "mislukt: upgradeproef 45/46 — 'niet leesbaar via de oude API' telde als schade; gesplitst in onbruikbaar vs. schade (cb8341c12)"
+  }
+ ],
+ "validatie": "Sim-getest (GitHub-runner ubuntu-24.04; geen echte NAS of apparaten)"
+}

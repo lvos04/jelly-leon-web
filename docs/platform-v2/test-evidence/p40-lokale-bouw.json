@@ -1,0 +1,101 @@
+{
+ "test": "P4-0 (B03-014 webdeel): herbasis op jellyfin-web v12.4 en de volledige build/tests lokaal",
+ "datum": "2026-11-09",
+ "omgeving": {
+  "machine": "eigen bouwmachine van de gebruiker: Ubuntu 26.04.1 LTS, kernel 7.0.0-42, 22 CPU's, 14 GiB RAM (gedeeld), Docker Engine 29.1.3; direct internet",
+  "node": "v24.22.2 (officiële tarball van nodejs.org, sha256 tegen SHASUMS256.txt; buiten de repo)",
+  "npm": "11.19.1",
+  "python": "3.12.16 (venv buiten de repo)",
+  "browser": "Chromium 153.0.8010.12 headless (Playwright 1.63.0)",
+  "code": "commit 0e3352ca9 (webbroncode = upstream v12.4 + JLW-0001 + JLW-0002)"
+ },
+ "upgrade": {
+  "kies": {
+   "nieuwste": "v12.4",
+   "nieuwere_stabiele_tags": [
+    "v12.0",
+    "v12.1",
+    "v12.2",
+    "v12.3",
+    "v12.4"
+   ],
+   "patch": null
+  },
+  "herbasis": "0 conflicten; merge-commit 2d96f377e (ouders 536aa7e1e + 0a580ce8d), baseline 77872d3e9 (12.4.0-jl.0)",
+  "weigering_1": "workflow_check.py exit 1: 10 onbewaakte geheimgebruiken via workflow_run.yml → JLW-0001",
+  "weigering_2": "npm ci met Node 22.23.4/npm 10.9.9: EBADENGINE (vereist node >=24.0.0, npm >=11.0.0) → Node 24.22.2/npm 11.19.1"
+ },
+ "stappen": [
+  {
+   "commando": "npm ci --no-audit --no-fund --cache <lege map> --loglevel=http",
+   "exit": 0,
+   "duur_s": 15,
+   "uitkomst": "1771 pakketten; classlist.js van codeload.github.com (HTTP 200)"
+  },
+  {
+   "commando": "npm run lint",
+   "exit": 0,
+   "duur_s": 54,
+   "uitkomst": "0 fouten, 98 upstream-waarschuwingen"
+  },
+  {
+   "commando": "npm run stylelint",
+   "exit": 0,
+   "duur_s": 2,
+   "uitkomst": "0 problemen"
+  },
+  {
+   "commando": "npm run build:check",
+   "exit": 0,
+   "duur_s": 8,
+   "uitkomst": "tsc 0 fouten"
+  },
+  {
+   "commando": "npm test",
+   "exit": 0,
+   "duur_s": 2,
+   "uitkomst": "vitest 12 bestanden, 164/164"
+  },
+  {
+   "commando": "taskset -c 0-3 npm run build:production",
+   "exit": 0,
+   "duur_s": 95,
+   "uitkomst": "2348 bestanden, 61 MB, <title>Jelly Leon</title>"
+  },
+  {
+   "commando": "npm run escheck",
+   "exit": 0,
+   "uitkomst": "982 bestanden ES5 in orde"
+  },
+  {
+   "commando": "docker run node:24.22.2-bookworm-slim@sha256:01d566e8… npm ci && build:production && escheck",
+   "exit": 0,
+   "duur_s": 100,
+   "uitkomst": "Node v24.22.2, npm 11.19.1, 2348 bestanden"
+  },
+  {
+   "commando": "forkregels (check_fork_consistency, patch_register_check, contract_drift --online, workflow_check, upstream_gedrag_check, pytest, actionlint)",
+   "exit": 0,
+   "uitkomst": "alle in orde; pytest 130 geslaagd (op 0e3352ca9; 153 met de latere upgradeproef-tests)"
+  },
+  {
+   "commando": "web_smoke.py --modus fork --layouts modern,legacy",
+   "exit": 0,
+   "duur_s": 52,
+   "uitkomst": "45/45 (test-evidence/p40-web-smoke/web-smoke-fork.json)"
+  },
+  {
+   "commando": "web_smoke.py --modus stock --layouts modern,legacy",
+   "exit": 0,
+   "duur_s": 41,
+   "uitkomst": "39/39 (test-evidence/p40-web-smoke/web-smoke-stock.json)"
+  },
+  {
+   "commando": "upstream_gedrag_check.py tegen de oude 10.11.11-boom (tegenproef)",
+   "exit": 1,
+   "uitkomst": "11 van 19 ankers falen (verwacht: verhuisde haakpunten)"
+  }
+ ],
+ "niet_lokaal": "De upgradeproef (upgrade_proef.py) is niet lokaal gedraaid: stack.lock was langer dan 30 minuten bezet door een andere bouwer (MSO-review). Hij is uitgevoerd op de GitHub-runner (run 42681489156, 46/46).",
+ "validatie": "Sim-getest"
+}
