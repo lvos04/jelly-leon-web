@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 import workflow_check
 from conftest import REPO_ROOT, write
 
@@ -34,8 +36,65 @@ jobs:
 
 
 def test_real_repository_workflows_are_guarded():
-    """De echte upstream-workflows van v10.11.11 moeten zonder patch in orde zijn."""
+    """De echte upstream-workflows (v12.4 + guard-patch JLW-0001 op workflow_run.yml) zijn in orde."""
     assert workflow_check.main(["--repo", str(REPO_ROOT)]) == 0
+
+
+# Ingekort uit upstream jellyfin-web v12.4 (.github/workflows/workflow_run.yml): de reden voor patch JLW-0001.
+WORKFLOW_RUN_V124 = """
+on:
+  workflow_run:
+    workflows: [Pull Request]
+    types: [completed]
+jobs:
+  automation:
+    name: Automation
+    {guard_automation}
+    uses: ./.github/workflows/bot.yml
+    secrets:
+      JF_BOT_TOKEN: ${{{{ secrets.JF_BOT_TOKEN }}}}
+  deploy:
+    name: Deploy
+    if: ${{{{ {guard_deploy}github.event.workflow_run.conclusion == 'success' }}}}
+    uses: ./.github/workflows/bot.yml
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{{{ secrets.CLOUDFLARE_API_TOKEN }}}}
+"""
+
+
+def test_upstream_workflow_run_v124_without_guard_fails_and_jlw_0001_fixes_it(tmp_path):
+    unguarded = WORKFLOW_RUN_V124.format(guard_automation="", guard_deploy="")
+    repo = make_repo(tmp_path / "zonder", {"workflow_run.yml": unguarded, "bot.yml": REUSABLE_WITH_SECRET})
+    errors = workflow_check.check_upstream(repo, workflow_check.load_workflows(repo), [])
+    assert any("automation" in e for e in errors) and any("CLOUDFLARE_API_TOKEN" in e for e in errors)
+    guarded = WORKFLOW_RUN_V124.format(
+        guard_automation="if: ${{ github.repository == 'jellyfin/jellyfin-web' }}",
+        guard_deploy="github.repository == 'jellyfin/jellyfin-web' && ",
+    )
+    repo = make_repo(tmp_path / "met", {"workflow_run.yml": guarded, "bot.yml": REUSABLE_WITH_SECRET})
+    assert workflow_check.check_upstream(repo, workflow_check.load_workflows(repo), []) == []
+
+
+@pytest.mark.parametrize(
+    "condition, guarded",
+    [
+        ("${{ github.repository == 'jellyfin/jellyfin-web' }}", True),
+        ("${{ github.repository == 'jellyfin/jellyfin-web' && github.event.workflow_run.conclusion == 'success' }}", True),
+        ("github.event_name == 'push' && contains(github.repository, 'jellyfin/')", True),
+        ("(github.repository_owner == 'jellyfin')", True),
+        ("github.repository == 'jellyfin/jellyfin-web' && (a || b)", True),
+        # een guard in een of-tak bewaakt niets: de job kan in de fork alsnog draaien
+        ("github.repository == 'jellyfin/jellyfin-web' || always()", False),
+        ("${{ always() || github.repository == 'jellyfin/jellyfin-web' }}", False),
+        ("(github.repository == 'jellyfin/jellyfin-web' || true) && github.event_name == 'push'", False),
+        ("github.repository != 'jellyfin/jellyfin-web'", False),
+        ("github.event.pull_request.head.repo.full_name == 'jellyfin/jellyfin-web'", False),
+        ("${{ contains(github.event.head_commit.message, 'jellyfin/') }}", False),
+        (None, False),
+    ],
+)
+def test_guard_must_be_top_level_conjunct(condition, guarded):
+    assert workflow_check._guarded(condition) is guarded
 
 
 def test_direct_unguarded_secret_fails(tmp_path):

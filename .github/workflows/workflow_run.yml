@@ -37,6 +37,7 @@ jobs:
 
   automation:
     name: Automation
+    if: ${{ github.repository == 'jellyfin/jellyfin-web' }}
     uses: ./.github/workflows/__automation.yml
     permissions:
       contents: read
@@ -46,7 +47,7 @@ jobs:
 
   deploy:
     name: Deploy
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.repository == 'jellyfin/jellyfin-web' && github.event.workflow_run.conclusion == 'success' }}
     uses: ./.github/workflows/__deploy.yml
     permissions:
       contents: read

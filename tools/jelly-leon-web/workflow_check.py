@@ -83,8 +83,73 @@ def _text(value: object) -> str:
     return yaml.safe_dump(value, allow_unicode=True, sort_keys=True) if value is not None else ""
 
 
+def _top_level_terms(expr: str) -> tuple[list[str], bool]:
+    """Splits een expressie op `&&` op het hoogste niveau (buiten haakjes en strings).
+
+    Geeft (conjuncten, heeft_top_level_or). Haakjes en strings ('…') blijven binnen hun term.
+    """
+    terms: list[str] = []
+    depth = 0
+    in_string = False
+    has_or = False
+    current: list[str] = []
+    index = 0
+    while index < len(expr):
+        char = expr[index]
+        pair = expr[index:index + 2]
+        if in_string:
+            current.append(char)
+            if char == "'":
+                in_string = False
+        elif char == "'":
+            in_string = True
+            current.append(char)
+        elif char == "(":
+            depth += 1
+            current.append(char)
+        elif char == ")":
+            depth -= 1
+            current.append(char)
+        elif depth == 0 and pair == "&&":
+            terms.append("".join(current))
+            current = []
+            index += 1
+        elif depth == 0 and pair == "||":
+            has_or = True
+            current.append(pair)
+            index += 1
+        else:
+            current.append(char)
+        index += 1
+    terms.append("".join(current))
+    return [t.strip() for t in terms], has_or
+
+
+def _strip_outer_parens(term: str) -> str:
+    while term.startswith("(") and term.endswith(")"):
+        inner = term[1:-1].strip()
+        _, has_or = _top_level_terms(inner)
+        if has_or or len(_top_level_terms(inner)[0]) != 1:
+            break
+        term = inner
+    return term
+
+
 def _guarded(condition: object) -> bool:
-    return isinstance(condition, str) and bool(GUARD_RE.search(condition))
+    """Waar alleen als de repository-guard een conjunct op het hoogste niveau is.
+
+    `github.repository == 'jellyfin/jellyfin-web' && x` telt als bewaakt; `guard || x` en `(guard || x) && y` niet,
+    want dan kan de job in de fork alsnog draaien (aanvulling P4-0: de guard op workflow_run.yml gebruikt `&&`).
+    """
+    if not isinstance(condition, str):
+        return False
+    expr = condition.strip()
+    if expr.startswith("${{") and expr.endswith("}}"):
+        expr = expr[3:-2].strip()
+    terms, has_or = _top_level_terms(expr)
+    if has_or:
+        return False
+    return any(GUARD_RE.fullmatch(_strip_outer_parens(term)) for term in terms)
 
 
 def _upstream_secrets(value: object) -> set[str]:
