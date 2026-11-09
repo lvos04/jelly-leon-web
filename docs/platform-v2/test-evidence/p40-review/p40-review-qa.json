@@ -1,0 +1,121 @@
+{
+  "test": "Onafhankelijke review/QA P4-0 (B03-014 webdeel, JW1) — alles opnieuw zoals de CI het draait, lokaal",
+  "datum": "2026-11-09",
+  "code": "eindstand van de bouwer b693399a9; reparaties 218a0c5d5, 428473d3c, 1ee24c507, d67edaacf (alleen tools/jelly-leon-web en de eigen CI-workflow; geen upstream-bestand gewijzigd)",
+  "omgeving": {
+    "machine": "eigen bouwmachine van de gebruiker (Ubuntu 26.04, 22 CPU's, 14 GiB RAM gedeeld met andere bouwers), Docker Engine; direct internet",
+    "node": "v24.22.2 / npm 11.19.1 (officiële tarball, buiten de repo; = baseline.json toolchain)",
+    "python": "3.12.16 (venv buiten de repo, tools/jelly-leon-web/requirements-dev.txt)",
+    "browser": "Chromium 153.0.8010.12 headless (Playwright 1.63.0)",
+    "werkwijze": "zware stappen één voor één met nice -n 10; productiebuild op 4 CPU's (taskset -c 0-3)",
+    "stack_lock": "stack.lock was de hele review bezet door de langlopende MSO-reviewstack (hold-stack.sh, tot 4 uur). De E2E-proeven zijn daarom zonder stack.lock gedraaid, op hun eigen poorten 38097/38098 (vooraf vrij gecontroleerd, geen botsing met de MSO-stack); het zijn geen tijdmetingen."
+  },
+  "stappen": [
+    {
+      "commando": "python tools/jelly-leon-web/check_fork_consistency.py",
+      "exit": 0,
+      "uitkomst": "basis v12.4 (0a580ce8df89), forkversie 12.4.0-jl.0, identiteit jellyfin-web 12.4.0"
+    },
+    {
+      "commando": "python tools/jelly-leon-web/patch_register_check.py",
+      "exit": 0,
+      "uitkomst": "109 afwijkende paden, 4 in geregistreerde core-patches (JLW-0001: workflow_run.yml; JLW-0002: index.html, manifest.json, libraryMenu.js)"
+    },
+    {
+      "commando": "git diff --name-status upstream-v12.4 HEAD (buiten docs/, tools/jelly-leon-web/, deploy/)",
+      "exit": 0,
+      "uitkomst": "alleen .env.example, de twee eigen workflows, README.jelly-leon.md en de 4 bestanden van JLW-0001/0002; 0 verwijderde of hernoemde upstream-bestanden; lokale tag upstream-v12.4 = git ls-remote v12.4 (0a580ce8df89); v12.4 is nog steeds de nieuwste stabiele tag"
+    },
+    {
+      "commando": "python tools/jelly-leon-web/contract_drift.py --online en --bron-map ../ai-server-manager",
+      "exit": 0,
+      "uitkomst": "2 bestanden byte-gelijk aan lvos04/ai-server-manager@8b54f3940; B03-plan, -fasering, -besluiten en INHOUDSOPGAVE sha256-gelijk aan de bron"
+    },
+    {
+      "commando": "python tools/jelly-leon-web/workflow_check.py --overzicht",
+      "exit": 0,
+      "uitkomst": "10 upstream (geheimen bewaakt), 2 eigen (vastgezet)"
+    },
+    {
+      "commando": "python tools/jelly-leon-web/upstream_gedrag_check.py --overzicht",
+      "exit": 0,
+      "uitkomst": "19/19 ankers (UG-WEB-1…19)"
+    },
+    {
+      "commando": "python -m pytest -q -c tools/jelly-leon-web/pytest.ini tools/jelly-leon-web/tests",
+      "exit": 0,
+      "uitkomst": "153 geslaagd op b693399a9; 171 geslaagd na de reparaties (18 nieuwe tests; de nieuwe EVIDENCE-test faalt op de oude check_fork_consistency.py)"
+    },
+    {
+      "commando": "actionlint .github/workflows/jelly-leon-web-ci.yml .github/workflows/upstream-sync.yml (shellcheck 0.11.0)",
+      "exit": 0,
+      "uitkomst": "geen meldingen (ook na de nieuwe stock-stap)"
+    },
+    {
+      "commando": "npm ci --no-audit --no-fund",
+      "exit": 0,
+      "duur_s": 8,
+      "uitkomst": "1771 pakketten"
+    },
+    {
+      "commando": "npm run lint",
+      "exit": 0,
+      "uitkomst": "eslint 0 fouten, 98 upstream-waarschuwingen"
+    },
+    {
+      "commando": "npm run stylelint",
+      "exit": 0,
+      "uitkomst": "0 problemen"
+    },
+    {
+      "commando": "npm run build:check",
+      "exit": 0,
+      "uitkomst": "tsc 0 fouten"
+    },
+    {
+      "commando": "npm test",
+      "exit": 0,
+      "uitkomst": "vitest 12 bestanden, 164/164 geslaagd"
+    },
+    {
+      "commando": "taskset -c 0-3 npm run build:production && npm run escheck",
+      "exit": 0,
+      "uitkomst": "dist/ 2348 bestanden, 61 MB, <title>Jelly Leon</title>; es-check 982 bestanden ES5 in orde"
+    },
+    {
+      "commando": "python tools/jelly-leon-web/e2e/web_smoke.py --modus fork --dist dist --image jellyfin/jellyfin:12.4@sha256:fea863d0… --layouts modern,legacy",
+      "exit": 0,
+      "uitkomst": "45/45 (twee keer: op 1ee24c507 en op d67edaacf); rapport p40-review/web-smoke-fork.json"
+    },
+    {
+      "commando": "python tools/jelly-leon-web/e2e/web_smoke.py --modus stock --image jellyfin/jellyfin:12.4@sha256:fea863d0… --layouts modern,legacy",
+      "exit": 0,
+      "uitkomst": "39/39 (twee keer); rapport p40-review/web-smoke-stock.json"
+    },
+    {
+      "commando": "python tools/jelly-leon-web/e2e/upgrade_proef.py --dist dist --layouts modern,legacy --negatief-verwacht start",
+      "exit": 0,
+      "uitkomst": "eerst lokaal (bouwer kon het niet): 48/48 met de nieuwe hervatpuntcontrole; daarna 50/50 met ook de onthouden spoorkeuzes: VÓÓR = NA (0 verschillen, sha256 ddd7701b…), gast hervat in Modern en Legacy op PositionTicks 10000000 (= hervatpunt), spoorkeuze gast 2/4 vóór én na (voorkeur nld = 1/3), terugzetten byte-gelijk, negatieve proef: oude image gezond maar aanmelden HTTP 500, geen blijvende schade (JLT-61 b Sim-mislukt); rapport p40-review/upgrade-proef-lokaal.json"
+    },
+    {
+      "commando": "GitHub Actions Jelly Leon Web CI run 42686982044 (commit 1ee24c507)",
+      "exit": 0,
+      "uitkomst": "8/8 jobs geslaagd: forkregels (164 + 1 overgeslagen), lint, stylelint, tsc, vitest 164/164, build in de Node-image op digest, smoketest fork 45/45 én stock 39/39 (nieuw in CI), upgradeproef 48/48"
+    },
+    {
+      "commando": "GitHub Actions Jelly Leon Web CI run 42688123496 (commit d67edaacf)",
+      "exit": 0,
+      "uitkomst": "8/8 jobs geslaagd: forkregels (170 + 1 overgeslagen), lint, stylelint, tsc, vitest, build in de Node-image op digest, smoketest fork 45/45 en stock 39/39, upgradeproef 50/50 (spoorkeuze gast 2/4 vóór en na; hervatten op PositionTicks 10058100 in Modern en 10000000 in Legacy)"
+    }
+  ],
+  "bevindingen": [
+    "Upgradeproef: 'clients hervatten op het juiste punt' (JLT-60) was alleen gedekt met 'de knop Hervatten is zichtbaar'; nu meet de proef dat de webclient de afspeelstart meldt op het hervatpunt (218a0c5d5).",
+    "Upgradeproef: afspelen in de browserdelen kon de kijkgegevens zelf veranderen (gemelde afspeelstart verhoogt PlayCount en zet LastPlayedDate); dan meldt de negatieve proef vals 'schade' en ziet de tweede layout geen hervatpunt. Afspeelmeldingen worden in de upgradeproef nu onderschept (218a0c5d5). In de smoketest verandert niets.",
+    "HARDE EIS 'onthouden spoorkeuzes' was niet gedekt (testbestand met één spoor, alleen de taalvoorkeur vergeleken); nu met een testfilm met 2 audio- en 2 ondertitelsporen en de keuze per gebruiker via PlaybackInfo (d67edaacf).",
+    "CI draaide alleen de fork-smoketest; B03-014 en JW1 vragen ook de stock-smoketest. Nu beide in de job web-e2e (428473d3c).",
+    "check_fork_consistency.py accepteerde een testrij met tegelijk Sim-geslaagd en Sim-mislukt (1ee24c507).",
+    "EVIDENCE.json (JLT-60) verwees naar test-evidence/p40-upgrade/upgrade-proef.json; het bestand heet upgrade-proef-ci-42681489156.json (rechtgezet)."
+  ],
+  "niet_gewijzigd": "Geen upstream-bestand, geen patch, geen toolchain; de bevinding JLT-61 (b) Sim-mislukt blijft staan (downgradeweigering hoort in lvos04/jelly-leon).",
+  "validatie": "Sim-getest (officiële images op digest + headless Chromium); echte NAS: NIET GEVALIDEERD (echte NAS); echte apparaten: NIET GEVALIDEERD (hardware)"
+}

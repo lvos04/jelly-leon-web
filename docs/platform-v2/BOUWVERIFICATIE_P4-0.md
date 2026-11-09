@@ -105,3 +105,48 @@ lokale metingen in [`test-evidence/p40-lokale-bouw.json`](test-evidence/p40-loka
 - De jelly-leon-image met deze webstand: nog niet (andere repo; zie ADR-0011 "Gevolgen").
 - Een echte run van `upstream-sync.yml` op GitHub (alleen vanaf de standaardbranch) en de sync 12.4 → 12.y (JLT-67):
   er is nog geen nieuwere 12.x-tag dan v12.4.
+
+## 8. Onafhankelijke review P4-0 (2026-11-09, na commit `b693399a9`)
+
+Alles opnieuw zoals de CI het draait, lokaal op de bouwmachine (Node 24.22.2 / npm 11.19.1, Python 3.12.16, Chromium
+153 headless). `stack.lock` was de hele review bezet door de langlopende MSO-reviewstack (tot 4 uur); de E2E-proeven
+zijn daarom zonder `stack.lock` gedraaid, op hun eigen poorten 38097/38098 (vooraf vrij gecontroleerd). Het zijn geen
+tijdmetingen. Samenvatting: [`test-evidence/p40-review/p40-review-qa.json`](test-evidence/p40-review/p40-review-qa.json).
+
+| Controle | Uitkomst |
+|---|---|
+| Alleen upstream + geregistreerde patches | `git diff upstream-v12.4 HEAD` buiten de fork-eigen paden: alleen de 4 bestanden van JLW-0001/0002; 0 verwijderde of hernoemde upstream-bestanden; lokale tag `upstream-v12.4` = `git ls-remote` v12.4 (`0a580ce8df89`); v12.4 is nog steeds de nieuwste stabiele tag |
+| Forkregels | `check_fork_consistency.py`, `patch_register_check.py`, `contract_drift.py` (online en tegen `../ai-server-manager`), `workflow_check.py`, `upstream_gedrag_check.py` (19/19): alle exit 0; B03-plankopieën sha256-gelijk aan de bron |
+| Tool-tests | 153 geslaagd op `b693399a9`; **171** na de reparaties |
+| actionlint (shellcheck 0.11.0) | 0 meldingen |
+| `npm ci`, lint, stylelint, tsc, vitest | exit 0; eslint 0 fouten (98 upstream-waarschuwingen), vitest 164/164 |
+| Productiebuild + es-check (4 CPU's) | 2348 bestanden, 61 MB, `<title>Jelly Leon</title>`; 982 bestanden ES5 |
+| Smoketest fork / stock (12.4 op digest, Modern + Legacy) | **45/45** en **39/39**, twee keer (op `1ee24c507` en `d67edaacf`) |
+| Upgradeproef 10.11.11 → 12.4 | nu ook **lokaal**: 48/48 (met hervatpuntcontrole), daarna **50/50** (met onthouden spoorkeuzes) |
+| GitHub-CI run [42686982044](https://github.com/lvos04/jelly-leon-web/actions/runs/42686982044) (`1ee24c507`) | **8/8 jobs**: smoketest fork 45/45 én stock 39/39 (stock nieuw in CI), upgradeproef 48/48 |
+| GitHub-CI run [42688123496](https://github.com/lvos04/jelly-leon-web/actions/runs/42688123496) (`d67edaacf`) | **8/8 jobs**: tool-tests 170 + 1 overgeslagen, smoketest fork 45/45 en stock 39/39, upgradeproef **50/50** (spoorkeuze gast 2/4 vóór en na; hervatten op PositionTicks 10 058 100 in Modern en 10 000 000 in Legacy, binnen de marge van 0,25 s) |
+
+### 8.1 Gevonden en gerepareerd
+
+1. **Hervatten op het juiste punt (JLT-60) was niet echt gemeten** — alleen dat de knop "Hervatten" zichtbaar is. Nu
+   klikt de gast in beide layouts op Hervatten en moet de webclient de afspeelstart (`POST /Sessions/Playing`) melden
+   met `PositionTicks` = het hervatpunt: gemeten **10 000 000** (1 s) in Modern en Legacy (`218a0c5d5`).
+2. **De proef kon de kijkgegevens zelf veranderen.** Een gemelde afspeelstart verhoogt `PlayCount` en zet
+   `LastPlayedDate`; dan meldt de negatieve proef vals "schade" en ziet de tweede layout geen hervatpunt meer. Dat het
+   tot nu toe goed ging, hing af van timing (de browser sloot direct na het streamverzoek), niet van de proef. In de
+   upgradeproef worden de afspeelmeldingen nu onderschept (204, niet naar de server); de smoketest blijft ongewijzigd
+   (`218a0c5d5`).
+3. **HARDE EIS "onthouden spoorkeuzes" was niet gedekt** (één spoor in het testbestand; alleen de taalvoorkeur
+   vergeleken). Nu: testfilm van 3 s met 2 audio- en 2 ondertitelsporen (nld/eng), gemaakt met de ffmpeg uit de oude
+   image op digest (`--network none`, bitexact, sha256 `14401ef7…`), niet gecommit. Op 10.11.11 kiest de gast via
+   afspeelmeldingen de Engelse sporen 2/4 tegen haar voorkeur nld (1/3) in; vóór én na de upgrade biedt PlaybackInfo de
+   gast 2/4 aan, de anderen 1/3, het kind HTTP 404 (geen toegang) — **0 verschillen** (`d67edaacf`).
+4. **CI draaide alleen de fork-smoketest**; B03-014 ("stock-client-smoketest") en JW1 ("smoketest fork/stock") vragen
+   ook stock. Nu beide in de job `web-e2e`; stock draait ook als fork faalt (`428473d3c`).
+5. **`check_fork_consistency.py` accepteerde een testrij die tegelijk Sim-geslaagd en Sim-mislukt is**; nu een fout
+   (`1ee24c507`).
+6. `EVIDENCE.json` (JLT-60) verwees naar een niet-bestaand rapportbestand; rechtgezet.
+
+Niet gewijzigd: geen upstream-bestand, geen patch, geen toolchain. JLT-61 (b) blijft **Sim-mislukt** (de oude
+stock-image weigert de gemigreerde data niet zichtbaar; de weigering hoort in `lvos04/jelly-leon`). Rapporten:
+[`test-evidence/p40-review/`](test-evidence/p40-review/).

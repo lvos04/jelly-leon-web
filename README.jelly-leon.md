@@ -29,6 +29,12 @@ GPL-2.0-or-later (zie [`LICENSE`](LICENSE)); gebaseerd op Jellyfin, met dank aan
   [`BOUWVERIFICATIE_P4-0.md`](docs/platform-v2/BOUWVERIFICATIE_P4-0.md).
 - Niet gevalideerd: echte NAS, echte tv's/telefoons (D15), een echte run van `upstream-sync.yml`. De image van
   `lvos04/jelly-leon` moet deze stand nog overnemen (andere repo; zie ADR-0011 "Gevolgen").
+- **Onafhankelijke review P4-0** ([`BOUWVERIFICATIE_P4-0.md`](docs/platform-v2/BOUWVERIFICATIE_P4-0.md) §8): alles
+  opnieuw lokaal (171 tool-tests, vitest 164/164, build, smoketest fork 45/45 en stock 39/39) en de upgradeproef nu ook
+  lokaal, **50/50**: daarbij gerepareerd dat de gast in beide layouts op het juiste punt hervat (gemeten), dat
+  **onthouden spoorkeuzes** per item vóór = na zijn (testfilm met 2 audio- en 2 ondertitelsporen) en dat de proef zelf
+  geen kijkgegevens verandert; de stock-smoketest draait nu ook in CI (runs 42686982044 en 42688123496, 8/8; upgradeproef
+  op GitHub 50/50).
 
 ## Eerdere stand (P0 + contractronde 1.2, 2026-11-09, op v10.11.11)
 
