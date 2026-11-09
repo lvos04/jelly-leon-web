@@ -7,6 +7,7 @@ from pathlib import Path
 
 import check_fork_consistency
 import patch_register_check
+import pytest
 from conftest import EMPTY_PATCHES, REPO_ROOT, commit_all, git, package_json, write
 
 
@@ -213,6 +214,56 @@ def test_evidence_must_be_list(repos):
     fork: Path = repos["fork"]
     write(fork, "docs/platform-v2/EVIDENCE.json", json.dumps(EVIDENCE_OK))
     assert check_fork_consistency.check_evidence(fork) == ["docs/platform-v2/EVIDENCE.json: verwacht een JSON-lijst (contract §11)"]
+
+
+def test_evidence_ontbrekend_of_leeg_is_nooit_in_orde(repos, capsys):
+    """Fail-closed: zonder bewijsbestand (of met een lege lijst) meldt de CI-stap nooit "in orde"."""
+    fork: Path = repos["fork"]
+    assert check_fork_consistency.main(["--repo", str(fork)]) == 0
+    capsys.readouterr()
+    (fork / "docs/platform-v2/EVIDENCE.json").unlink()
+    assert check_fork_consistency.check_evidence(fork) == [
+        "docs/platform-v2/EVIDENCE.json ontbreekt (contract §11: elke repo houdt EVIDENCE.json bij)"
+    ]
+    assert check_fork_consistency.main(["--repo", str(fork)]) == 1
+    captured = capsys.readouterr()
+    assert "in orde" not in captured.out
+    assert "EVIDENCE.json ontbreekt" in captured.err
+    write(fork, "docs/platform-v2/EVIDENCE.json", "[]\n")
+    assert check_fork_consistency.check_evidence(fork) == [
+        "docs/platform-v2/EVIDENCE.json: lege lijst — geen enkel bewijs vastgelegd (contract §11)"
+    ]
+    assert check_fork_consistency.main(["--repo", str(fork)]) == 1
+
+
+def test_evidence_blokkade_staat_ook_in_validatie(repos):
+    """Een NIET GEVALIDEERD-blokkade die niet in `validatie` staat, zou in de Excel als volledig Sim-getest lezen."""
+    fork: Path = repos["fork"]
+    good = dict(EVIDENCE_OK, validatie="Sim-getest; NIET GEVALIDEERD (echte NAS); NIET GEVALIDEERD (hardware)",
+                blokkade="echte NAS: NIET GEVALIDEERD (echte NAS); echte tv's: NIET GEVALIDEERD (hardware)")
+    write(fork, "docs/platform-v2/EVIDENCE.json", json.dumps([good]))
+    assert check_fork_consistency.check_evidence(fork) == []
+    bad = [
+        dict(good, validatie="Sim-getest; NIET GEVALIDEERD (hardware)"),
+        dict(good, id="B03-013", validatie="Sim-getest", blokkade="NIET GEVALIDEERD (echte NAS/hardware)"),
+    ]
+    write(fork, "docs/platform-v2/EVIDENCE.json", json.dumps(bad))
+    errors = check_fork_consistency.check_evidence(fork)
+    assert errors == [
+        "docs/platform-v2/EVIDENCE.json[B03-001]: blokkade noemt 'NIET GEVALIDEERD (echte NAS)', maar validatie niet "
+        "(zet het als lijstwaarde in 'validatie')",
+        "docs/platform-v2/EVIDENCE.json[B03-013]: blokkade noemt 'NIET GEVALIDEERD (echte NAS/hardware)', maar "
+        "validatie niet (zet het als lijstwaarde in 'validatie')",
+    ]
+
+
+@pytest.mark.parametrize("datum", ["2026-02-30", "2026-13-01", "9-11-2026", "", "2026-11-09T12:00:00Z"])
+def test_evidence_bijgewerkt_is_een_echte_datum(repos, datum):
+    fork: Path = repos["fork"]
+    write(fork, "docs/platform-v2/EVIDENCE.json", json.dumps([dict(EVIDENCE_OK, bijgewerkt=datum)]))
+    assert check_fork_consistency.check_evidence(fork) == [
+        "docs/platform-v2/EVIDENCE.json[B03-001]: bijgewerkt moet een echte datum JJJJ-MM-DD zijn"
+    ]
 
 
 def test_package_json_helper_roundtrip():

@@ -11,6 +11,9 @@ Controles:
     geldige statussen, nooit "Gereed"/"Geslaagd" in deze bouwomgeving, `validatie` alleen waarden uit de vaste lijst
     (meerdere gescheiden door "; ", toelichting hoort in `opmerking`), repo = jelly-leon-web, en elke commit die in
     `bewijs` genoemd wordt bestaat echt in deze repo (commits van andere repos schrijf je als `<repo>@<sha>`).
+    Fail-closed: een ontbrekend of leeg EVIDENCE.json is een overtreding (§11: elke repo houdt het bij), nooit "in
+    orde". Elke `NIET GEVALIDEERD (…)` die in `blokkade` staat, staat ook in `validatie` (geen stille blokkade);
+    `bijgewerkt` is een echte kalenderdatum.
 
 Exitcodes: 0 = in orde, 1 = overtreding, 3 = gebruiks-/omgevingsfout.
 """
@@ -18,6 +21,7 @@ Exitcodes: 0 = in orde, 1 = overtreding, 3 = gebruiks-/omgevingsfout.
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import re
 import sys
 from pathlib import Path
@@ -62,6 +66,8 @@ VALIDATIE_SEP = "; "
 # URL-paden) en niet alleen cijfers (run-ID's van GitHub Actions).
 COMMIT_REF_RE = re.compile(r"(?<![0-9A-Za-z:@/\-])([0-9a-f]{7,40})(?![0-9A-Za-z])")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# "NIET GEVALIDEERD (…)" in vrije tekst (blokkade): moet ook als lijstwaarde in `validatie` staan.
+NIET_GEVALIDEERD_RE = re.compile(r"NIET GEVALIDEERD \([^)]*\)")
 ID_RE = re.compile(r"^(B\d{2}-\d{3}|I\d{2}-\d{2}-\d{2}|A\d{2}(-\d+)?|APP-\d{2}|EX\d{2}|D\d{2})$")
 
 
@@ -121,10 +127,13 @@ def check_identity(repo: Path, baseline: dict) -> list[str]:
 def check_evidence(repo: Path) -> list[str]:
     path = repo / EVIDENCE_REL
     if not path.is_file():
-        return []
+        # Fail-closed: zonder bewijsbestand valt er niets te controleren, dus nooit "in orde" (contract §11).
+        return [f"{EVIDENCE_REL} ontbreekt (contract §11: elke repo houdt EVIDENCE.json bij)"]
     data = load_json(repo, EVIDENCE_REL)
     if not isinstance(data, list):
         return [f"{EVIDENCE_REL}: verwacht een JSON-lijst (contract §11)"]
+    if not data:
+        return [f"{EVIDENCE_REL}: lege lijst — geen enkel bewijs vastgelegd (contract §11)"]
     errors: list[str] = []
     seen: set[str] = set()
     for index, entry in enumerate(data):
@@ -154,12 +163,13 @@ def check_evidence(repo: Path) -> list[str]:
         if status in FORBIDDEN_STATUSES:
             errors.append(f"{where}: status '{status}' vraagt echte acceptatie op de NAS en wordt hier nooit gezet")
         errors.extend(check_validatie(where, entry_id, entry.get("validatie", "")))
+        errors.extend(check_blokkade_in_validatie(where, entry.get("validatie", ""), entry.get("blokkade", "")))
         if status == "Geblokkeerd" and not entry.get("blokkade"):
             errors.append(f"{where}: status Geblokkeerd zonder blokkade-reden")
         if entry.get("repo") != REPO_NAME:
             errors.append(f"{where}: repo moet '{REPO_NAME}' zijn")
-        if not DATE_RE.match(str(entry.get("bijgewerkt", ""))):
-            errors.append(f"{where}: bijgewerkt moet JJJJ-MM-DD zijn")
+        if not is_calendar_date(entry.get("bijgewerkt", "")):
+            errors.append(f"{where}: bijgewerkt moet een echte datum JJJJ-MM-DD zijn")
         if not str(entry.get("bewijs", "")).strip():
             errors.append(f"{where}: bewijs is leeg")
         errors.extend(check_commit_refs(repo, where, str(entry.get("bewijs", ""))))
@@ -181,6 +191,28 @@ def check_validatie(where: str, entry_id: str, validatie: object) -> list[str]:
     if len(set(parts)) != len(parts):
         errors.append(f"{where}: validatie '{validatie}' bevat een waarde dubbel")
     return errors
+
+
+def check_blokkade_in_validatie(where: str, validatie: object, blokkade: object) -> list[str]:
+    """Een `NIET GEVALIDEERD (…)` in de blokkade staat ook in `validatie` (de Excel-kolom toont anders te veel)."""
+    if not isinstance(validatie, str) or not isinstance(blokkade, str):
+        return []
+    parts = set(validatie.split(VALIDATIE_SEP))
+    return [
+        f"{where}: blokkade noemt '{value}', maar validatie niet (zet het als lijstwaarde in 'validatie')"
+        for value in dict.fromkeys(NIET_GEVALIDEERD_RE.findall(blokkade))
+        if value not in parts
+    ]
+
+
+def is_calendar_date(value: object) -> bool:
+    if not isinstance(value, str) or not DATE_RE.match(value):
+        return False
+    try:
+        dt.date.fromisoformat(value)
+    except ValueError:
+        return False
+    return True
 
 
 def check_commit_refs(repo: Path, where: str, bewijs: str) -> list[str]:

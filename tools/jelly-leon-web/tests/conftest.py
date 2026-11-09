@@ -76,6 +76,17 @@ EMPTY_PATCHES = """# Patchregister
 Geen core-patches.
 """
 
+FIXTURE_EVIDENCE = {
+    "id": "B03-001",
+    "status": "Bezig",
+    "validatie": "Sim-getest; NIET GEVALIDEERD (hardware)",
+    "bewijs": "tests/test_patch_register_and_consistency.py",
+    "blokkade": "echte apparaten: NIET GEVALIDEERD (hardware)",
+    "opmerking": "",
+    "repo": "jelly-leon-web",
+    "bijgewerkt": "2026-11-09",
+}
+
 FORK_PATHS = """# fork-eigen
 README.jelly-leon.md
 docs/platform-v2/
@@ -114,6 +125,8 @@ def repos(tmp_path: Path) -> dict:
     write(fork, "tools/jelly-leon-web/baseline.json", json.dumps(baseline, indent=2) + "\n")
     write(fork, "tools/jelly-leon-web/fork_paths.txt", FORK_PATHS)
     write(fork, "docs/platform-v2/PATCHES.md", PATCHES)
+    # Verplicht bewijsbestand (contract §11); zonder dit faalt check_fork_consistency.py terecht (fail-closed).
+    write(fork, "docs/platform-v2/EVIDENCE.json", json.dumps([FIXTURE_EVIDENCE], indent=2) + "\n")
     write(fork, "README.jelly-leon.md", "# fork\n")
     write(fork, "src/jelly-leon/mediaguard.js", "export const knop = 'Vraag aan';\n")
     # Geregistreerde core-patch JLW-0001: één regel haak in de detailpagina.
