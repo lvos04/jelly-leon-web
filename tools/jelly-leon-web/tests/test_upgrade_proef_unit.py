@@ -15,10 +15,15 @@ import web_smoke  # noqa: E402
 ITEM = {"Id": "i1", "Path": "/media/muziek/Jelly Leon Test/Smoketest/01 - Sinus 440 Hz.wav"}
 
 
+FILM_PATH = f"/media/films/{upgrade_proef.FILM_RELATIVE.as_posix()}"
+FILM = {"Id": "f1", "Path": FILM_PATH, "Type": "Movie"}
+
+
 class FakeApi:
-    def __init__(self, userdata: dict, prefs: dict | None = None):
+    def __init__(self, userdata: dict, prefs: dict | None = None, tracks: dict | None = None):
         self.userdata = userdata
         self.prefs = prefs or dict(upgrade_proef.GUEST_PREFS)
+        self.tracks = tracks  # per gebruiker-ID de spoorkeuze uit PlaybackInfo; None = geen testfilm
 
     def json(self, method, path, token=None, body=None, **_kwargs):
         assert token
@@ -29,9 +34,18 @@ class FakeApi:
                 {"Id": "u-a", "Name": "jl-beheer", "Policy": {"IsAdministrator": True}, "Configuration": {}},
             ]
         if path.startswith("/Items?"):
-            return 200, {"Items": [ITEM]}
+            assert "Audio%2CMovie" in path  # films (spoorkeuzes) horen in de vergelijking
+            return 200, {"Items": [ITEM] + ([FILM] if self.tracks is not None else [])}
         if path.startswith("/UserItems/i1/UserData?userId="):
             return 200, self.userdata[path.rsplit("=", 1)[1]]
+        if path.startswith("/UserItems/f1/UserData?userId="):
+            return 200, {"Played": False, "PlayCount": 1}
+        if path.startswith("/Items/f1/PlaybackInfo?userId="):
+            assert method == "POST"
+            user_id = path.rsplit("=", 1)[1]
+            if user_id not in self.tracks:
+                return 404, None
+            return 200, {"MediaSources": [dict(self.tracks[user_id], Id="bron", MediaStreams=[])]}
         raise AssertionError(path)
 
 
@@ -221,3 +235,70 @@ def test_playback_reports_can_be_intercepted_without_reaching_the_server():
     route = Route(request="POST /Sessions/Playing")
     handler(route)
     assert seen == ["POST /Sessions/Playing"] and route.fulfilled == {"status": 204, "body": ""}
+
+
+GUEST_TRACKS = dict(upgrade_proef.GUEST_TRACKS)
+ADMIN_TRACKS = {"DefaultAudioStreamIndex": 1, "DefaultSubtitleStreamIndex": -1}
+
+
+def test_snapshot_records_remembered_track_choice_per_film():
+    snap = upgrade_proef.snapshot(FakeApi({"u-a": ADMIN, "u-g": GUEST}, tracks={"u-g": GUEST_TRACKS, "u-a": ADMIN_TRACKS}), "t")
+    assert snap["items"] == sorted([ITEM["Path"], FILM_PATH])
+    guest = snap["gebruikers"][upgrade_proef.GUEST]
+    assert guest["spoorkeuzes"] == {FILM_PATH: GUEST_TRACKS}               # alleen films, niet het muziekbestand
+    assert set(guest["kijkgegevens"]) == {ITEM["Path"], FILM_PATH}
+
+
+@pytest.mark.parametrize(
+    "after_tracks, fragment",
+    [
+        ({"u-g": {"DefaultAudioStreamIndex": 1, "DefaultSubtitleStreamIndex": 4}, "u-a": ADMIN_TRACKS},
+         "DefaultAudioStreamIndex: 2 → 1"),              # onthouden audiokeuze kwijt (terug naar voorkeur nld)
+        ({"u-g": {"DefaultAudioStreamIndex": 2, "DefaultSubtitleStreamIndex": 3}, "u-a": ADMIN_TRACKS},
+         "DefaultSubtitleStreamIndex: 4 → 3"),           # onthouden ondertitelkeuze kwijt
+        ({"u-a": ADMIN_TRACKS}, "fout"),                 # film voor de gast niet meer afspeelbaar
+    ],
+)
+def test_lost_track_choice_is_reported(after_tracks, fragment):
+    before = upgrade_proef.snapshot(FakeApi({"u-a": ADMIN, "u-g": GUEST}, tracks={"u-g": GUEST_TRACKS, "u-a": ADMIN_TRACKS}), "t")
+    after = upgrade_proef.snapshot(FakeApi({"u-a": ADMIN, "u-g": GUEST}, tracks=after_tracks), "t")
+    diff = upgrade_proef.differences(before, after)
+    assert diff and any(fragment in line and "spoorkeuzes" in line for line in diff), diff
+
+
+def _complete_snapshot(guest_tracks: dict) -> dict:
+    wav = upgrade_proef.WAV_PATH
+    user = {"beleid": {}, "voorkeuren": {}, "kijkgegevens": {}, "spoorkeuzes": {}}
+    users = {name: {k: dict(v) for k, v in user.items()} for name in
+             ("jl-beheer", "jl-kind", upgrade_proef.GUEST, upgrade_proef.TEEN, upgrade_proef.PARENT)}
+    users["jl-beheer"]["kijkgegevens"][wav] = upgrade_proef.normalise_userdata(upgrade_proef.ADMIN_DATA)
+    users[upgrade_proef.GUEST]["kijkgegevens"][wav] = upgrade_proef.normalise_userdata(upgrade_proef.GUEST_DATA)
+    users[upgrade_proef.GUEST]["voorkeuren"] = dict(upgrade_proef.GUEST_PREFS)
+    users[upgrade_proef.GUEST]["spoorkeuzes"][FILM_PATH] = guest_tracks
+    users["jl-kind"]["beleid"]["EnableAllFolders"] = False
+    users[upgrade_proef.TEEN]["beleid"].update(upgrade_proef.TEEN_POLICY)
+    return {"gebruikers": users}
+
+
+def test_expected_present_requires_the_remembered_track_choice():
+    ok = web_smoke.Report(mode="upgrade", base_url="x", image="x")
+    upgrade_proef.expected_present(_complete_snapshot(GUEST_TRACKS), ok, "VÓÓR")
+    assert ok.passed, ok.steps
+    # Alleen de taalvoorkeur (nld = 1/3), niet de onthouden keuze: dan vergelijkt de proef niets → mislukt.
+    missing = web_smoke.Report(mode="upgrade", base_url="x", image="x")
+    upgrade_proef.expected_present(_complete_snapshot({"DefaultAudioStreamIndex": 1, "DefaultSubtitleStreamIndex": 3}),
+                                   missing, "VÓÓR")
+    assert not missing.passed
+
+
+def test_server_dirs_mount_the_film_library_read_only(monkeypatch, tmp_path):
+    calls = []
+    monkeypatch.setattr(web_smoke, "docker", lambda *a, **k: calls.append(a))
+    args = web_smoke.build_parser().parse_args(["--modus", "stock"])
+    dirs = web_smoke.ServerDirs(config=tmp_path / "c", cache=tmp_path / "k", media=tmp_path / "m", user="1:1",
+                                films=tmp_path / "f")
+    web_smoke.start_server(args, dirs, "naam")
+    assert f"{tmp_path / 'f'}:{web_smoke.FILMS_PATH}:ro" in calls[0]
+    web_smoke.start_server(args, web_smoke.ServerDirs(config=tmp_path / "c", cache=tmp_path / "k",
+                                                      media=tmp_path / "m", user="1:1"), "naam")
+    assert not any(web_smoke.FILMS_PATH in part for part in calls[1])

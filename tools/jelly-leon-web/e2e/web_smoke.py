@@ -66,6 +66,7 @@ WEB_CLIENT_NAME = "Jellyfin Web"
 LAYOUTS = {"modern": None, "legacy": "desktop-legacy"}
 WEB_DIR_IN_IMAGE = "/jellyfin/jellyfin-web"
 LIBRARY_PATH = "/media/muziek"
+FILMS_PATH = "/media/films"
 TRACK_NAME = "Sinus 440 Hz"
 VIEWPORTS = ((360, 780), (390, 844), (768, 1024), (1440, 900))
 CLIENT = {"Client": "Jelly Leon Web Smoketest", "Device": "CI", "DeviceId": "jlw-web-smoke", "Version": "0.1.0"}
@@ -202,6 +203,8 @@ class ServerDirs:
     cache: Path
     media: Path
     user: str
+    # Optioneel (upgradeproef): map met een testfilm, alleen-lezen gekoppeld op FILMS_PATH.
+    films: Path | None = None
 
 
 def prepare_dirs(work: Path) -> ServerDirs:
@@ -237,6 +240,8 @@ def start_server(args: argparse.Namespace, dirs: ServerDirs, name: str, fork_web
         "--security-opt", "no-new-privileges", "-p", f"127.0.0.1:{args.port}:8096",
         "-v", f"{dirs.config}:/config", "-v", f"{dirs.cache}:/cache", "-v", f"{dirs.media}:{LIBRARY_PATH}:ro",
     ]
+    if dirs.films is not None:
+        cmd += ["-v", f"{dirs.films}:{FILMS_PATH}:ro"]
     if fork_web:
         cmd += ["-v", f"{args.dist.resolve()}:{WEB_DIR_IN_IMAGE}:ro"]
     cmd.append(args.image)

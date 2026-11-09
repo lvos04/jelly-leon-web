@@ -2,13 +2,16 @@
 """Upgradeproef 10.11.11 → 12.x met behoud van kijkgegevens (JLT-60/JLT-61 webdeel; simulator, geen NAS).
 
 HARDE EIS van de gebruiker (B03 §10.9): alle kijkgeschiedenis — gezien-status (met aantal en datum), hervatpunten,
-favorieten, beoordelingen, onthouden taal-/ondertitelvoorkeuren, gebruikers en rechten — blijft behouden. Deze proef
+favorieten, beoordelingen, onthouden spoorkeuzes, taal-/ondertitelvoorkeuren, gebruikers en rechten — blijft behouden. Deze proef
 toont dat voor een gevulde 10.11.11-datamap met de officiële images, en dat de Jelly Leon-webclient (fork-build)
 daarna in beide layouts werkt:
 
   1. oude server (stock 10.11.11, digest) + eerste-startwizard, bibliotheek en vijf gebruikers: beheerder, kind (geen
      toegang), gast, tiener (leeftijdsgrens en geblokkeerde tag) en ouder; kijkgegevens via de officiële API:
-     beheerder 2× gezien + favoriet + beoordeling, gast hervatpunt + voorkeuren, tiener gezien, ouder favoriet;
+     beheerder 2× gezien + favoriet + beoordeling, gast hervatpunt + voorkeuren, tiener gezien, ouder favoriet; plus
+     een bibliotheek "Films" met een zelfgemaakte testfilm (2 audio- en 2 ondertitelsporen, nld/eng) waarin de gast via
+     de afspeelmeldingen van een client de Engelse sporen kiest — tegen haar voorkeur nld in, dus een echt onthouden
+     spoorkeuze (RememberAudioSelections/RememberSubtitleSelections), uitgelezen met PlaybackInfo;
   2. VÓÓR-rapport per gebruiker (genormaliseerd, sha256); server stoppen; kopie van /config (= snapshot);
   3. nieuwe server (12.x, digest) met de fork-build op dezelfde /config → migraties; NA-rapport; elk verschil is
      een mislukte stap (geen stil verlies; een verklaard verschil zou akkoord van de gebruiker vragen, §10.9);
@@ -34,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import dataclasses
 import hashlib
 import json
 import os
@@ -48,6 +52,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import make_test_media  # noqa: E402
 import web_smoke  # noqa: E402
 from web_smoke import Api, Report, docker  # noqa: E402
 
@@ -70,6 +75,15 @@ USERDATA_FIELDS = ("Played", "PlayCount", "PlaybackPositionTicks", "IsFavorite",
 POLICY_FIELDS = ("IsAdministrator", "IsDisabled", "EnableAllFolders", "EnabledFolders", "MaxParentalRating",
                  "BlockedTags", "EnableContentDownloading", "EnableRemoteAccess")
 CONFIG_FIELDS = tuple(GUEST_PREFS)
+# Testfilm voor onthouden spoorkeuzes (HARDE EIS: "onthouden spoorkeuzes"). Spoorindexen volgens ffprobe:
+# 0 video, 1 audio nld, 2 audio eng, 3 ondertitel nld, 4 ondertitel eng. De gast heeft voorkeur nld (1/3) en kiest
+# eng (2/4): blijft na de upgrade 2/4 staan, dan is de onthouden keuze bewaard (niet alleen de taalvoorkeur).
+FILM_RELATIVE = Path("Jelly Leon Testfilm (2026)") / "Jelly Leon Testfilm (2026).mkv"
+FILM_TRACKS = {1: "Audio", 2: "Audio", 3: "Subtitle", 4: "Subtitle"}
+GUEST_TRACKS = {"DefaultAudioStreamIndex": 2, "DefaultSubtitleStreamIndex": 4}
+TRACK_FIELDS = tuple(GUEST_TRACKS)
+GUEST_DEVICE = "jlw-upgrade-gast"
+WAV_PATH = f"{web_smoke.LIBRARY_PATH}/{make_test_media.RELATIVE_PATH.as_posix()}"
 
 
 def iso_seconds(value: object) -> object:
@@ -98,15 +112,30 @@ def normalise_userdata(data: dict) -> dict:
     return out
 
 
+def track_choice(api: Api, token: str, item_id: str, user_id: str) -> dict:
+    """Spoorkeuze die de server een gebruiker voor dit item aanbiedt (PlaybackInfo: DefaultAudio-/SubtitleStreamIndex).
+
+    Daarin zit de onthouden keuze (UserData AudioStreamIndex/SubtitleStreamIndex); de DTO van UserData toont die niet.
+    """
+    status, body = api.json("POST", f"/Items/{item_id}/PlaybackInfo?userId={user_id}", token=token,
+                            body={"UserId": user_id})
+    sources = body.get("MediaSources") if isinstance(body, dict) else None
+    if status != 200 or not sources:
+        return {"fout": f"HTTP {status}"}
+    return {key: sources[0].get(key) for key in TRACK_FIELDS}
+
+
 def snapshot(api: Api, token: str) -> dict:
-    """Per gebruiker (op naam): beleid, voorkeuren en kijkgegevens per item (op pad), alleen via de officiële API."""
+    """Per gebruiker (op naam): beleid, voorkeuren, kijkgegevens per item (op pad) en spoorkeuzes per film, alleen
+    via de officiële API."""
     status, users = api.json("GET", "/Users", token=token)
     if status != 200 or not isinstance(users, list):
         raise RuntimeError(f"gebruikerslijst niet leesbaar (HTTP {status})")
     status, items = api.json("GET", "/Items?" + urllib.parse.urlencode(
-        {"Recursive": "true", "IncludeItemTypes": "Audio", "Fields": "Path"}), token=token)
+        {"Recursive": "true", "IncludeItemTypes": "Audio,Movie", "Fields": "Path"}), token=token)
     items = items.get("Items", []) if isinstance(items, dict) else []
-    result: dict = {"gebruikers": {}, "items": sorted(i.get("Path", "") for i in items)}
+    items = sorted(items, key=lambda i: i.get("Path", i.get("Id", "")))
+    result: dict = {"gebruikers": {}, "items": [i.get("Path", "") for i in items]}
     for user in sorted(users, key=lambda u: u["Name"]):
         policy = user.get("Policy") or {}
         config = user.get("Configuration") or {}
@@ -114,12 +143,16 @@ def snapshot(api: Api, token: str) -> dict:
             "beleid": {k: policy.get(k) for k in POLICY_FIELDS},
             "voorkeuren": {k: config.get(k) for k in CONFIG_FIELDS},
             "kijkgegevens": {},
+            "spoorkeuzes": {},
         }
         for item in items:
+            path = item.get("Path", item["Id"])
             s, data = api.json("GET", f"/UserItems/{item['Id']}/UserData?userId={user['Id']}", token=token)
-            entry["kijkgegevens"][item.get("Path", item["Id"])] = (
+            entry["kijkgegevens"][path] = (
                 normalise_userdata(data) if s == 200 and isinstance(data, dict) else {"fout": f"HTTP {s}"}
             )
+            if item.get("Type") == "Movie":
+                entry["spoorkeuzes"][path] = track_choice(api, token, item["Id"], user["Id"])
         result["gebruikers"][user["Name"]] = entry
     for entry in result["gebruikers"].values():
         if isinstance(entry["beleid"].get("EnabledFolders"), list):
@@ -189,9 +222,11 @@ def seed_viewing_data(api: Api, report: Report, creds: dict, ids: dict) -> bool:
 def expected_present(snap: dict, report: Report, label: str) -> None:
     """De gezette waarden staan er echt in (anders vergelijkt de proef niets)."""
     users = snap["gebruikers"]
-    admin = next(iter(users.get("jl-beheer", {}).get("kijkgegevens", {}).values()), {})
-    guest = next(iter(users.get(GUEST, {}).get("kijkgegevens", {}).values()), {})
+    admin = users.get("jl-beheer", {}).get("kijkgegevens", {}).get(WAV_PATH, {})
+    guest = users.get(GUEST, {}).get("kijkgegevens", {}).get(WAV_PATH, {})
     prefs = users.get(GUEST, {}).get("voorkeuren", {})
+    film = f"{web_smoke.FILMS_PATH}/{FILM_RELATIVE.as_posix()}"
+    tracks = users.get(GUEST, {}).get("spoorkeuzes", {}).get(film, {})
     ok = (admin.get("Played") is True and admin.get("PlayCount") == 2 and admin.get("IsFavorite") is True
           and admin.get("Rating") == 8.0 and admin.get("LastPlayedDate") == "2026-11-01T20:15:00Z"
           and guest.get("PlaybackPositionTicks") == GUEST_DATA["PlaybackPositionTicks"]
@@ -199,9 +234,95 @@ def expected_present(snap: dict, report: Report, label: str) -> None:
           and users.get("jl-kind", {}).get("beleid", {}).get("EnableAllFolders") is False
           and len(users) == 5
           and users.get(TEEN, {}).get("beleid", {}).get("BlockedTags") == TEEN_POLICY["BlockedTags"]
-          and users.get(TEEN, {}).get("beleid", {}).get("MaxParentalRating") is not None)
+          and users.get(TEEN, {}).get("beleid", {}).get("MaxParentalRating") is not None
+          and tracks == GUEST_TRACKS)
     report.add(f"{label}: gezette kijkgegevens aanwezig", ok,
-               f"beheerder {admin}; gast hervatpunt {guest.get('PlaybackPositionTicks')} ticks; voorkeuren {prefs}")
+               f"beheerder {admin}; gast hervatpunt {guest.get('PlaybackPositionTicks')} ticks; voorkeuren {prefs}; "
+               f"onthouden spoorkeuze gast (testfilm) {tracks} (verwacht {GUEST_TRACKS}, voorkeur nld = 1/3)")
+
+
+def make_film(films: Path, work: Path, image: str, user: str) -> Path:
+    """Testfilm van 3 s met 2 audio- en 2 ondertitelsporen (nld/eng), gemaakt met de ffmpeg uit de oude serverimage.
+
+    Geen extra gereedschap op de runner nodig, zonder netwerk en zonder capabilities; deterministisch (bitexact), geen
+    auteursrechtelijk materiaal. De ondertitelbronnen staan buiten de bibliotheek (geen externe ondertitels).
+    """
+    target = films / FILM_RELATIVE
+    target.parent.mkdir(parents=True, exist_ok=True)
+    subs = work / "ondertitelbron"
+    subs.mkdir(parents=True, exist_ok=True)
+    (subs / "nl.srt").write_text("1\n00:00:00,000 --> 00:00:02,500\nOndertitel een\n", encoding="utf-8")
+    (subs / "en.srt").write_text("1\n00:00:00,000 --> 00:00:02,500\nSubtitle one\n", encoding="utf-8")
+    for path in (films, target.parent, subs):
+        os.chmod(path, 0o755)
+    if os.geteuid() == 0:
+        os.chown(target.parent, 568, 568)
+    docker(
+        "run", "--rm", "--network", "none", "--user", user, "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
+        "--entrypoint", "/usr/lib/jellyfin-ffmpeg/ffmpeg", "-v", f"{subs}:/in:ro", "-v", f"{target.parent}:/out",
+        image, "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "testsrc=size=160x90:rate=10:duration=3",
+        "-f", "lavfi", "-i", "sine=frequency=440:duration=3", "-f", "lavfi", "-i", "sine=frequency=880:duration=3",
+        "-i", "/in/nl.srt", "-i", "/in/en.srt",
+        "-map", "0:v", "-map", "1:a", "-map", "2:a", "-map", "3:s", "-map", "4:s",
+        "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", "-b:a", "32k", "-c:s", "srt",
+        "-metadata:s:a:0", "language=nld", "-metadata:s:a:1", "language=eng",
+        "-metadata:s:s:0", "language=nld", "-metadata:s:s:1", "language=eng",
+        "-fflags", "+bitexact", "-flags:v", "+bitexact", "-flags:a", "+bitexact", f"/out/{target.name}",
+    )
+    os.chmod(target, 0o644)
+    return target
+
+
+def seed_track_choice(api: Api, args: argparse.Namespace, report: Report, creds: dict, ids: dict) -> bool:
+    """Bibliotheek "Films" + onthouden spoorkeuze van de gast, gezet zoals een client dat doet (afspeelmeldingen)."""
+    token = ids["token"]
+    query = urllib.parse.urlencode({"name": "Films", "collectionType": "movies", "paths": web_smoke.FILMS_PATH,
+                                    "refreshLibrary": "true"})
+    lib_status, _ = api.request("POST", f"/Library/VirtualFolders?{query}", token=token, body={"LibraryOptions": {}})
+    film_id, source_id, streams = "", "", {}
+    deadline = time.monotonic() + args.scan_timeout
+    while time.monotonic() < deadline:
+        status, body = api.json("GET", "/Items?" + urllib.parse.urlencode(
+            {"Recursive": "true", "IncludeItemTypes": "Movie", "userId": ids["admin_id"]}), token=token)
+        if status == 200 and isinstance(body, dict) and body.get("Items"):
+            film_id = body["Items"][0]["Id"]
+            p_status, info = api.json("POST", f"/Items/{film_id}/PlaybackInfo?userId={ids['admin_id']}", token=token,
+                                      body={"UserId": ids["admin_id"]})
+            sources = info.get("MediaSources") if isinstance(info, dict) else None
+            if p_status == 200 and sources:
+                source_id = sources[0].get("Id", "")
+                streams = {s.get("Index"): s.get("Type") for s in sources[0].get("MediaStreams") or []}
+                if all(streams.get(index) == kind for index, kind in FILM_TRACKS.items()):
+                    break
+        api.request("POST", "/Library/Refresh", token=token)
+        time.sleep(3)
+    probed = bool(film_id) and all(streams.get(index) == kind for index, kind in FILM_TRACKS.items())
+    if not report.add("bibliotheek 'Films' met testfilm (2 audio- en 2 ondertitelsporen) gescand",
+                      lib_status in (200, 204) and probed,
+                      f"bibliotheek HTTP {lib_status}; film {film_id or 'niet gevonden'}; sporen {streams}"):
+        return False
+    g_status, g_auth = api.json("POST", "/Users/AuthenticateByName", device_id=GUEST_DEVICE,
+                                body={"Username": GUEST, "Pw": creds["guest_password"]})
+    g_token = g_auth.get("AccessToken") if isinstance(g_auth, dict) else None
+    if g_token:
+        report.secrets.append(g_token)
+    play = {"ItemId": film_id, "MediaSourceId": source_id, "PlaySessionId": "jlw-upgrade-spoorkeuze",
+            "PlayMethod": "DirectPlay", "CanSeek": True, "IsPaused": False, **{
+                "AudioStreamIndex": GUEST_TRACKS["DefaultAudioStreamIndex"],
+                "SubtitleStreamIndex": GUEST_TRACKS["DefaultSubtitleStreamIndex"]}}
+    codes = [g_status]
+    if g_token:
+        for path, body in (("/Sessions/Playing", dict(play, PositionTicks=0)),
+                           ("/Sessions/Playing/Progress", dict(play, PositionTicks=TICKS_PER_SECOND // 2)),
+                           ("/Sessions/Playing/Stopped", dict(play, PositionTicks=TICKS_PER_SECOND // 2))):
+            codes.append(api.request("POST", path, token=g_token, body=body, device_id=GUEST_DEVICE)[0])
+    chosen = track_choice(api, token, film_id, ids["guest_id"]) if ids.get("guest_id") else {}
+    ids["film_id"] = film_id
+    return report.add("onthouden spoorkeuze van de gast gezet (testfilm: audio eng, ondertitel eng; voorkeur nld)",
+                      bool(g_token) and all(c in (200, 204) for c in codes) and chosen == GUEST_TRACKS,
+                      f"aanmelden + afspeelmeldingen HTTP {codes}; PlaybackInfo voor de gast {chosen} "
+                      f"(verwacht {GUEST_TRACKS})")
 
 
 def is_playback_start(method: str, url: str) -> bool:
@@ -356,10 +477,13 @@ def run(args: argparse.Namespace) -> tuple[Report, dict, int]:
 
     try:
         dirs = web_smoke.prepare_dirs(work)
+        film = make_film(work / "films", work, args.old_image, dirs.user)
+        dirs = dataclasses.replace(dirs, films=film.parents[1])
+        extra["testfilm_sha256"] = hashlib.sha256(film.read_bytes()).hexdigest()
         old = server_args(args.old_image, "stock", args.old_version)
         web_smoke.start_server(old, dirs, container, fork_web=False)
         ids = web_smoke.api_phase(api, old, report, creds)
-        if not ids or not seed_viewing_data(api, report, creds, ids):
+        if not ids or not seed_viewing_data(api, report, creds, ids) or not seed_track_choice(api, args, report, creds, ids):
             return report, extra, 1
         before = snapshot(api, ids["token"])
         expected_present(before, report, "VÓÓR (10.11.11)")
@@ -393,7 +517,7 @@ def run(args: argparse.Namespace) -> tuple[Report, dict, int]:
         diff = differences(before, after)
         extra["verschillen"] = diff
         report.add("NA (12.x) = VÓÓR per gebruiker: gezien, aantal, datum, hervatpunt, favoriet, beoordeling, "
-                   "voorkeuren, rechten", not diff,
+                   "onthouden spoorkeuzes, voorkeuren, rechten", not diff,
                    f"sha256 vóór {extra['voor_sha256'][:16]}…, na {extra['na_sha256'][:16]}…; "
                    f"{len(diff)} verschillen{': ' + '; '.join(diff[:5]) if diff else ''}")
         expected_present(after, report, "NA (12.x)")
@@ -418,7 +542,7 @@ def run(args: argparse.Namespace) -> tuple[Report, dict, int]:
         fresh_cache = work / "cache-terugzetten"  # de cache van 12.x hoort niet bij het teruggezette pad
         fresh_cache.mkdir()
         os.chmod(fresh_cache, 0o777 if os.geteuid() == 0 else 0o755)
-        rollback_dirs = web_smoke.ServerDirs(config=snapshot_dir, cache=fresh_cache, media=dirs.media, user=dirs.user)
+        rollback_dirs = dataclasses.replace(dirs, config=snapshot_dir, cache=fresh_cache)
         web_smoke.start_server(old, rollback_dirs, container, fork_web=False)
         healthy = web_smoke.wait_healthy(api, args.start_timeout)
         token, _ = login(api, creds["admin_user"], creds["admin_password"], report) if healthy else (None, {})
