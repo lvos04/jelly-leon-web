@@ -1,0 +1,222 @@
+# Jelly Leon Web CI — bewaakt de forkregels (patchregister, technische identiteit, workflow-guards, EVIDENCE.json),
+# draait de upstream-kwaliteitscontroles (eslint, stylelint, tsc, vitest), maakt de productiebuild + es-check, bewaart
+# die als artefact (tarball + sha256 + bouwinfo) en test dat artefact in een echte browser tegen de officiële
+# Jellyfin-serverimage (web-client-smoketest, simulator — geen echte apparaten).
+# Upstream-workflows (push.yml, pull_request.yml, …) blijven ongewijzigd bestaan; zie docs/adr/ADR-0007.
+# Deze workflow publiceert niets: geen image, geen release. De web-client komt in de image van lvos04/jelly-leon.
+name: Jelly Leon Web CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'ccr-**'
+      - 'sync/**'
+      - 'release/**'
+    tags:
+      - 'v*-jl.*'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jelly-leon-web-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Officiële upstream-server, op digest vastgezet; dezelfde runtime als deploy/allinone in lvos04/jelly-leon.
+  JLW_SERVER_IMAGE: docker.io/jellyfin/jellyfin:10.11.11@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db
+
+jobs:
+  forkregels:
+    name: Forkregels (patchregister, identiteit, workflows, tool-tests)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout (volledige historie voor de upstream-basis)
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Python 3.12
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: '3.12'
+
+      - name: Testafhankelijkheden
+        run: python -m pip install --disable-pip-version-check -r tools/jelly-leon-web/requirements-dev.txt
+
+      - name: Versie, technische identiteit en EVIDENCE.json
+        run: python tools/jelly-leon-web/check_fork_consistency.py
+
+      - name: Patchregister (elke afwijking van upstream geregistreerd)
+        run: python tools/jelly-leon-web/patch_register_check.py
+
+      - name: Upstream-geheimen achter repository-guards, eigen workflows vastgezet
+        run: python tools/jelly-leon-web/workflow_check.py --overzicht
+
+      - name: Tests van de forktools (incl. EX48-simulatie)
+        run: python -m pytest -q -c tools/jelly-leon-web/pytest.ini tools/jelly-leon-web/tests
+
+      - name: Eigen workflows controleren (actionlint)
+        run: actionlint -shellcheck= .github/workflows/jelly-leon-web-ci.yml .github/workflows/upstream-sync.yml
+
+  kwaliteit:
+    name: Upstream-kwaliteit (${{ matrix.command }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        command:
+          - lint
+          - stylelint
+          - build:check
+          - test
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Node.js (zelfde versie als de web-stage van de jelly-leon-image)
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22.23.4
+          cache: npm
+
+      - name: Afhankelijkheden (exact volgens package-lock.json)
+        run: npm ci --no-audit --no-fund
+
+      - name: npm run ${{ matrix.command }}
+        run: npm run "${{ matrix.command }}"
+
+  build:
+    name: Productiebuild + artefact
+    needs: forkregels
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      artefact: ${{ steps.pakket.outputs.artefact }}
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22.23.4
+          cache: npm
+
+      - name: Afhankelijkheden
+        run: npm ci --no-audit --no-fund
+
+      - name: Productiebuild
+        env:
+          JELLYFIN_VERSION: ${{ github.sha }}
+        run: npm run build:production
+
+      - name: ES5-controle van de bundel (upstream es-check)
+        run: npm run escheck
+
+      - name: Artefact samenstellen (tarball, sha256, bouwinfo)
+        id: pakket
+        env:
+          COMMIT: ${{ github.sha }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -eu
+          test -f dist/index.html
+          fork_version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon-web/baseline.json'))['fork_version'])")
+          upstream_tag=$(python3 -c "import json;print(json.load(open('tools/jelly-leon-web/baseline.json'))['upstream_tag'])")
+          name="jelly-leon-web-${fork_version}-${COMMIT:0:12}"
+          mkdir -p "$RUNNER_TEMP/artefact"
+          tar --sort=name --owner=0 --group=0 --numeric-owner --mtime='@0' -czf "$RUNNER_TEMP/artefact/$name.tar.gz" -C dist .
+          (cd "$RUNNER_TEMP/artefact" && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256")
+          python3 - "$RUNNER_TEMP/artefact/bouwinfo.json" "$fork_version" "$upstream_tag" <<'PY'
+          import json, os, subprocess, sys
+          out, fork_version, upstream_tag = sys.argv[1:4]
+          info = {
+              "artefact": "jelly-leon-web dist (productiebuild)",
+              "forkversie": fork_version,
+              "upstream_tag": upstream_tag,
+              "commit": os.environ["COMMIT"],
+              "ref": os.environ["REF_NAME"],
+              "node": subprocess.run(["node", "--version"], capture_output=True, text=True).stdout.strip(),
+              "npm": subprocess.run(["npm", "--version"], capture_output=True, text=True).stdout.strip(),
+              "bestanden": sum(len(f) for _, _, f in os.walk("dist")),
+              "let_op": "Geen release. Wordt als build-context/artefact gebruikt door lvos04/jelly-leon (deploy/allinone).",
+          }
+          json.dump(info, open(out, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
+          PY
+          cat "$RUNNER_TEMP/artefact/bouwinfo.json"
+          echo "artefact=$name" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Web-client-artefact"
+            echo "- \`$name.tar.gz\` — sha256 \`$(cut -d' ' -f1 "$RUNNER_TEMP/artefact/$name.tar.gz.sha256")\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Artefact uploaden
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: jelly-leon-web-dist
+          retention-days: 30
+          if-no-files-found: error
+          path: ${{ runner.temp }}/artefact/
+
+  web-e2e:
+    name: Web-client-smoketest (Chromium + officiële server, simulator)
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Artefact ophalen
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: jelly-leon-web-dist
+          path: ${{ runner.temp }}/artefact
+
+      - name: Artefact controleren en uitpakken
+        env:
+          ARTEFACT: ${{ needs.build.outputs.artefact }}
+        run: |
+          set -eu
+          cd "$RUNNER_TEMP/artefact"
+          sha256sum -c "$ARTEFACT.tar.gz.sha256"
+          mkdir -p "$GITHUB_WORKSPACE/dist"
+          tar -xzf "$ARTEFACT.tar.gz" -C "$GITHUB_WORKSPACE/dist"
+          test -f "$GITHUB_WORKSPACE/dist/index.html"
+
+      - name: Python 3.12
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: '3.12'
+
+      - name: Playwright + Chromium
+        run: |
+          python -m pip install --disable-pip-version-check -r tools/jelly-leon-web/requirements-dev.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Serverimage ophalen (digest-gepind)
+        run: docker pull "$JLW_SERVER_IMAGE"
+
+      - name: Smoketest met de fork-build
+        run: >
+          python tools/jelly-leon-web/e2e/web_smoke.py --modus fork --dist dist --image "$JLW_SERVER_IMAGE"
+          --uitvoer "$RUNNER_TEMP/e2e"
+
+      - name: Rapport en schermafbeeldingen bewaren
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: web-smoke
+          retention-days: 14
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/e2e/

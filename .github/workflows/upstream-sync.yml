@@ -1,0 +1,211 @@
+# Upstream-sync van de webclient (ADR-0006, B03-013, EX48).
+#
+# Haalt de nieuwste stabiele tag van jellyfin/jellyfin-web op, neemt hem over in een aparte branch sync/<tag>
+# (vanaf de standaardbranch; merge binnen dezelfde releasereeks, anders "herbasis": upstream-tag + fork-eigen paden +
+# geregistreerde core-patches), werkt baseline.json bij en bouwt/test alles: forkregels, eslint, stylelint, tsc,
+# vitest, productiebuild + es-check en de web-client-smoketest tegen de officiële server van dezelfde versie.
+#
+#   * Een mergeconflict, build- of testfout = incompatibel → de workflow FAALT (EX48). Er wordt niets gedeployd.
+#   * Deze workflow publiceert nooit een image of release en raakt de standaardbranch niet.
+#   * Pushen van sync/<tag> gebeurt alleen als het geheim JLW_SYNC_PUSH_TOKEN bestaat (contents:write + workflows,
+#     omdat upstream-merges .github/workflows wijzigen en GITHUB_TOKEN dat niet mag pushen). Zonder dat geheim komt
+#     het resultaat als git-bundle in de artefacten.
+#   * Scheduled workflows draaien alleen vanaf de standaardbranch van de repository.
+#   * Server (lvos04/jelly-leon) en web horen naar dezelfde upstream-tag te gaan; dit staat in ADR-0006.
+name: Upstream-sync webclient
+
+on:
+  schedule:
+    - cron: '37 4 * * 1'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Expliciete stabiele upstream-tag (bv. v10.11.12 of v12.4); leeg = automatisch kiezen'
+        required: false
+        default: ''
+      spoor:
+        description: 'Spoor bij automatisch kiezen'
+        type: choice
+        options:
+          - beide
+          - patch
+          - nieuwste
+        default: beide
+      methode:
+        description: 'Sync-methode (auto = merge binnen dezelfde reeks, anders herbasis; ADR-0006)'
+        type: choice
+        options:
+          - auto
+          - merge
+          - herbasis
+        default: auto
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-sync-web
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_URL: https://github.com/jellyfin/jellyfin-web.git
+  SERVER_IMAGE_REPO: docker.io/jellyfin/jellyfin
+
+jobs:
+  detecteer:
+    name: Nieuwe stabiele upstream-tags bepalen
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      kandidaten: ${{ steps.kies.outputs.kandidaten }}
+      heeft_kandidaat: ${{ steps.kies.outputs.heeft_kandidaat }}
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: '3.12'
+
+      - name: Kandidaten kiezen
+        id: kies
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_SPOOR: ${{ inputs.spoor }}
+        run: |
+          set -eu
+          if [ -n "${INPUT_TAG:-}" ]; then
+            python3 - "$INPUT_TAG" <<'PY'
+          import json, os, sys
+          sys.path.insert(0, "tools/jelly-leon-web")
+          from jlw_common import parse_stable_tag
+          tag = sys.argv[1].strip()
+          if parse_stable_tag(tag) is None:
+              print(f"FOUT: '{tag}' is geen stabiele upstream-tag (vX.Y of vX.Y.Z)", file=sys.stderr)
+              sys.exit(1)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"kandidaten={json.dumps([tag])}\nheeft_kandidaat=true\n")
+          PY
+          else
+            case "${INPUT_SPOOR:-beide}" in
+              patch) args="--spoor patch" ;;
+              nieuwste) args="--spoor nieuwste" ;;
+              *) args="--spoor patch --spoor nieuwste" ;;
+            esac
+            # shellcheck disable=SC2086
+            python3 tools/jelly-leon-web/upstream_sync.py kies --bron "$UPSTREAM_URL" $args | tee "$RUNNER_TEMP/kies.json"
+            {
+              echo '## Upstream-sync webclient: kandidaten'
+              echo '```json'
+              cat "$RUNNER_TEMP/kies.json"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  sync:
+    name: Sync ${{ matrix.tag }} (overnemen, bouwen, testen — nooit deployen)
+    needs: detecteer
+    if: needs.detecteer.outputs.heeft_kandidaat == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: ${{ fromJSON(needs.detecteer.outputs.kandidaten) }}
+    steps:
+      - name: Checkout standaardbranch (volledige historie)
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: '3.12'
+
+      - name: Upstream-tag overnemen in sync/<tag> (conflict = incompatibel = falen)
+        env:
+          SYNC_TAG: ${{ matrix.tag }}
+          SYNC_METHODE: ${{ inputs.methode || 'auto' }}
+        run: |
+          set -eu
+          git config user.name "jelly-leon-sync"
+          git config user.email "jelly-leon-sync@users.noreply.github.com"
+          python3 tools/jelly-leon-web/upstream_sync.py merge --tag "$SYNC_TAG" --bron "$UPSTREAM_URL" \
+            --methode "$SYNC_METHODE" --maak-lokale-tag
+
+      - name: Forkregels na de sync
+        run: |
+          python3 -m pip install --disable-pip-version-check -r tools/jelly-leon-web/requirements-dev.txt
+          python3 tools/jelly-leon-web/check_fork_consistency.py
+          python3 tools/jelly-leon-web/patch_register_check.py
+          python3 tools/jelly-leon-web/workflow_check.py --overzicht
+          python3 -m pytest -q -c tools/jelly-leon-web/pytest.ini tools/jelly-leon-web/tests
+
+      - name: Node.js (onze vaste toolchain; eist upstream iets anders, dan faalt npm ci door engine-strict)
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22.23.4
+          cache: npm
+
+      - name: Upstream-kwaliteit en productiebuild
+        run: |
+          set -eu
+          npm ci --no-audit --no-fund
+          npm run lint
+          npm run stylelint
+          npm run build:check
+          npm test
+          npm run build:production
+          npm run escheck
+
+      - name: Web-client-smoketest tegen de officiële server van dezelfde versie
+        env:
+          SYNC_TAG: ${{ matrix.tag }}
+        run: |
+          set -eu
+          python3 -m playwright install --with-deps chromium
+          # Zelfde versie als de web-tag (v12.4 → 12.4); op digest vastgezet vóór gebruik en in het rapport vermeld.
+          ref="$SERVER_IMAGE_REPO:${SYNC_TAG#v}"
+          digest=$(docker buildx imagetools inspect "$ref" --format '{{json .Manifest}}' | python3 -c "import json,sys;print(json.load(sys.stdin)['digest'])") \
+            || { echo "::error::Serverimage $ref bestaat (nog) niet: sync niet verifieerbaar, dus niet overnemen."; exit 1; }
+          echo "Serverimage: $ref@$digest" | tee -a "$GITHUB_STEP_SUMMARY"
+          python3 tools/jelly-leon-web/e2e/web_smoke.py --modus fork --dist dist --image "$ref@$digest" \
+            --uitvoer "$RUNNER_TEMP/e2e"
+
+      - name: Resultaat als git-bundle bewaren
+        if: always()
+        env:
+          SYNC_TAG: ${{ matrix.tag }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if git rev-parse --verify --quiet "refs/heads/sync/$SYNC_TAG" >/dev/null; then
+            git bundle create "$RUNNER_TEMP/sync.bundle" "origin/$DEFAULT_BRANCH..sync/$SYNC_TAG"
+          fi
+
+      - name: Bundle en rapport uploaden
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: upstream-sync-web-${{ strategy.job-index }}
+          retention-days: 30
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/sync.bundle
+            ${{ runner.temp }}/e2e/
+
+      - name: sync/<tag> pushen ter beoordeling (alleen met JLW_SYNC_PUSH_TOKEN; nooit naar productie)
+        env:
+          PUSH_TOKEN: ${{ secrets.JLW_SYNC_PUSH_TOKEN }}
+          SYNC_TAG: ${{ matrix.tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -eu
+          if [ -z "${PUSH_TOKEN:-}" ]; then
+            echo "Geen JLW_SYNC_PUSH_TOKEN: sync/$SYNC_TAG staat alleen als git-bundle in de artefacten." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git push "https://x-access-token:${PUSH_TOKEN}@github.com/${REPO}.git" \
+            "refs/heads/sync/$SYNC_TAG:refs/heads/sync/$SYNC_TAG" "refs/tags/upstream-$SYNC_TAG:refs/tags/upstream-$SYNC_TAG"
+          echo "sync/$SYNC_TAG gepusht ter beoordeling. Niet gedeployd; overnemen en release blijven handmatige stappen." | tee -a "$GITHUB_STEP_SUMMARY"
