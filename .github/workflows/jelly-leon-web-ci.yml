@@ -197,7 +197,7 @@ jobs:
           path: ${{ runner.temp }}/artefact/
 
   web-e2e:
-    name: Web-client-smoketest (Chromium + officiële server 12.4, Modern + Legacy, simulator)
+    name: Web-client-smoketest (Chromium + officiële server 12.4, fork en stock, Modern + Legacy, simulator)
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -239,6 +239,14 @@ jobs:
       - name: Smoketest met de fork-build (Modern + Legacy, herstart, terugzetten naar stock-web en weer vooruit)
         run: >
           python tools/jelly-leon-web/e2e/web_smoke.py --modus fork --dist dist --image "$JLW_SERVER_IMAGE"
+          --layouts modern,legacy --uitvoer "$RUNNER_TEMP/e2e"
+
+      # Referentie (B03-014 "stock-client-smoketest", JW1 "smoketest fork/stock"): dezelfde reizen met de webclient die
+      # in de officiële image zit. Draait ook als de fork-stap faalt, zodat het verschil fork ↔ stock zichtbaar is.
+      - name: Smoketest met de stock-webclient uit dezelfde serverimage (Modern + Legacy, herstart)
+        if: ${{ !cancelled() }}
+        run: >
+          python tools/jelly-leon-web/e2e/web_smoke.py --modus stock --image "$JLW_SERVER_IMAGE"
           --layouts modern,legacy --uitvoer "$RUNNER_TEMP/e2e"
 
       - name: Rapport en schermafbeeldingen bewaren
