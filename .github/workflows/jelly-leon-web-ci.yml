@@ -292,10 +292,13 @@ jobs:
           docker pull "$JLW_OUDE_SERVER_IMAGE"
           docker pull "$JLW_SERVER_IMAGE"
 
-      - name: Upgradeproef (VÓÓR = NA per gebruiker, browser Modern + Legacy, negatieve proef, terugzetten)
+      # JLT-61 (b) met stock-images: gemeten (2026-11-09) start de oude 10.11.11-image zonder weigering op de door
+      # 12.4 gemigreerde data. Dat gedrag wordt hier vastgelegd (--negatief-verwacht start) en stille schade blijft een
+      # fout; de weigering zelf hoort in de jelly-leon-image (ADR-0011). EVIDENCE: JLT-61 (b) Sim-mislukt.
+      - name: Upgradeproef (VÓÓR = NA per gebruiker, browser Modern + Legacy, hervatten, terugzetten, negatieve proef)
         run: >
           python tools/jelly-leon-web/e2e/upgrade_proef.py --dist dist --oude-image "$JLW_OUDE_SERVER_IMAGE"
-          --image "$JLW_SERVER_IMAGE" --layouts modern,legacy --uitvoer "$RUNNER_TEMP/upgrade"
+          --image "$JLW_SERVER_IMAGE" --layouts modern,legacy --negatief-verwacht start --uitvoer "$RUNNER_TEMP/upgrade"
 
       - name: Rapport bewaren
         if: always()

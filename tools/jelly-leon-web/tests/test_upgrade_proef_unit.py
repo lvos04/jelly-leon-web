@@ -109,3 +109,39 @@ def test_ci_uses_the_same_old_and_new_images():
     baseline = json.loads((root / "tools/jelly-leon-web/baseline.json").read_text(encoding="utf-8"))
     assert upgrade_proef.build_parser().parse_args([]).image == baseline["toolchain"]["server_image"]
     assert "@sha256:" in upgrade_proef.OLD_IMAGE and ":10.11.11@" in upgrade_proef.OLD_IMAGE
+
+
+@pytest.mark.parametrize(
+    "verwacht, oud_gezond, schade, geslaagd",
+    [
+        ("weigert", False, False, True),    # acceptatie JLT-61 b: oude image weigert
+        ("weigert", True, False, False),    # oude image start: acceptatie niet gehaald
+        ("start", True, False, True),       # gemeten upstream-gedrag vastgelegd, geen stille schade
+        ("start", True, True, False),       # stille schade is altijd een fout
+        ("start", False, False, False),     # gedrag veranderd t.o.v. de meting: opnieuw beoordelen
+    ],
+)
+def test_negative_phase_modes(monkeypatch, verwacht, oud_gezond, schade, geslaagd):
+    calls = {"health": 0}
+
+    def wait_healthy(api, timeout):
+        calls["health"] += 1
+        return oud_gezond if calls["health"] == 1 else True
+
+    monkeypatch.setattr(upgrade_proef.web_smoke, "start_server", lambda *a, **k: None)
+    monkeypatch.setattr(upgrade_proef.web_smoke, "wait_healthy", wait_healthy)
+
+    class Proc:
+        stdout, stderr = "running 0", ""
+
+    monkeypatch.setattr(upgrade_proef, "docker", lambda *a, **k: Proc())
+    monkeypatch.setattr(upgrade_proef, "login", lambda *a, **k: ("tok", {}))
+    voor = {"gebruikers": {"jl-beheer": {"kijkgegevens": {"x": {"Played": True}}}}}
+    na = {"gebruikers": {"jl-beheer": {"kijkgegevens": {"x": {"Played": not schade}}}}}
+    monkeypatch.setattr(upgrade_proef, "snapshot", lambda api, token: na)
+    args = upgrade_proef.build_parser().parse_args(["--negatief-verwacht", verwacht])
+    rep, extra = web_smoke.Report(mode="upgrade", base_url="x", image="x"), {}
+    upgrade_proef.negative_phase(None, args, rep, {"admin_user": "a", "admin_password": "p"}, None, "c",
+                                 args, args, voor, extra)
+    assert rep.passed is geslaagd
+    assert extra["jlt61b"].startswith("Sim-geslaagd" if not oud_gezond else "Sim-mislukt")

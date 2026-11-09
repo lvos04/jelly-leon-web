@@ -6,15 +6,23 @@ favorieten, beoordelingen, onthouden taal-/ondertitelvoorkeuren, gebruikers en r
 toont dat voor een gevulde 10.11.11-datamap met de officiële images, en dat de Jelly Leon-webclient (fork-build)
 daarna in beide layouts werkt:
 
-  1. oude server (stock 10.11.11, digest) + eerste-startwizard, bibliotheek, beheerder, kind (geen toegang) en gast;
-     kijkgegevens via de officiële API: beheerder 2× gezien + favoriet + beoordeling, gast hervatpunt + voorkeuren;
+  1. oude server (stock 10.11.11, digest) + eerste-startwizard, bibliotheek en vijf gebruikers: beheerder, kind (geen
+     toegang), gast, tiener (leeftijdsgrens en geblokkeerde tag) en ouder; kijkgegevens via de officiële API:
+     beheerder 2× gezien + favoriet + beoordeling, gast hervatpunt + voorkeuren, tiener gezien, ouder favoriet;
   2. VÓÓR-rapport per gebruiker (genormaliseerd, sha256); server stoppen; kopie van /config (= snapshot);
   3. nieuwe server (12.x, digest) met de fork-build op dezelfde /config → migraties; NA-rapport; elk verschil is
      een mislukte stap (geen stil verlies; een verklaard verschil zou akkoord van de gebruiker vragen, §10.9);
   4. browser (fork-build) in Modern en Legacy op de gemigreerde data: inloggen met hetzelfde wachtwoord, zoeken,
-     detailpagina, afspelen, kinderprofiel ziet niets (stappen uit web_smoke.py);
-  5. negatief: alleen de oude image op de gemigreerde /config → mag niet stil "gezond" draaien (JLT-60);
-  6. terugzetten (JLT-61 a/b): oude image + de kopie van vóór de migratie → gezond, kijkgegevens = VÓÓR, stream 200.
+     detailpagina, afspelen, kinderprofiel ziet niets (stappen uit web_smoke.py), en de gast krijgt op de detailpagina
+     "Hervatten" aangeboden (hervatpunt bewaard);
+  5. terugzetten (JLT-61 a): oude image + de kopie van vóór de migratie → jellyfin.db byte-gelijk aan vóór, gezond,
+     kijkgegevens = VÓÓR, stream 200;
+  6. negatieve proef (JLT-61 b): alleen de oude image op de gemigreerde /config. De acceptatie eist "faalt zichtbaar
+     en zonder stille schade". Met `--negatief-verwacht weigert` (standaard) slaagt de stap alleen als de oude image
+     niet gezond wordt; met `--negatief-verwacht start` wordt het (in 10.11.11 gemeten) upstream-gedrag vastgelegd:
+     de oude image start wél — dan moet er in elk geval geen stille schade zijn: kijkgegevens via de oude API = VÓÓR
+     en daarna opnieuw 12.x op dezelfde map = VÓÓR. Een downgradeweigering hoort in de jelly-leon-image (ADR-0011 in
+     jelly-leon §4); tot die er is, is JLT-61 (b) met stock-images Sim-mislukt.
 
 Emby blijft hier buiten beschouwing: de overname vanuit Emby (B03-015 deel A, JLT-70…74) hoort bij lvos04/jelly-leon.
 Wachtwoorden worden per run gemaakt en nooit gerapporteerd; tokens worden geredigeerd.
@@ -47,6 +55,9 @@ OLD_IMAGE = (
     "docker.io/jellyfin/jellyfin:10.11.11@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db"
 )
 GUEST = "jl-gast"
+TEEN = "jl-tiener"
+PARENT = "jl-ouder"
+TEEN_POLICY = {"MaxParentalRating": 13, "BlockedTags": ["horror"]}
 TICKS_PER_SECOND = 10_000_000
 # Kijkgegevens die de proef zet en daarna exact terug moet vinden (HARDE EIS, §10.9).
 ADMIN_DATA = {"Played": True, "PlayCount": 2, "IsFavorite": True, "Rating": 8.0,
@@ -146,23 +157,32 @@ def login(api: Api, user: str, password: str, report: Report) -> tuple[str | Non
 
 
 def seed_viewing_data(api: Api, report: Report, creds: dict, ids: dict) -> bool:
-    """Gast aanmaken en kijkgegevens zetten via de officiële API (zoals een echte gebruiker die kijkt)."""
+    """Gast, tiener en ouder aanmaken en kijkgegevens zetten via de officiële API (zoals echte gebruikers)."""
     token, item = ids["token"], ids["item_id"]
-    status, guest = api.json("POST", "/Users/New", token=token, body={"Name": GUEST, "Password": creds["guest_password"]})
-    guest_id = guest.get("Id") if isinstance(guest, dict) else None
-    codes = [status]
-    if guest_id:
-        config = dict(guest.get("Configuration") or {}, **GUEST_PREFS)
-        codes.append(api.request("POST", f"/Users/{guest_id}/Configuration", token=token, body=config)[0])
-        codes.append(api.request("POST", f"/UserItems/{item}/UserData?userId={guest_id}", token=token,
-                                 body=GUEST_DATA)[0])
+    codes: list[int] = []
+    created: dict[str, str | None] = {}
+    for name in (GUEST, TEEN, PARENT):
+        status, user = api.json("POST", "/Users/New", token=token, body={"Name": name, "Password": creds["guest_password"]})
+        codes.append(status)
+        created[name] = user.get("Id") if isinstance(user, dict) else None
+        if name == GUEST and created[name]:
+            config = dict(user.get("Configuration") or {}, **GUEST_PREFS)
+            codes.append(api.request("POST", f"/Users/{created[name]}/Configuration", token=token, body=config)[0])
+        if name == TEEN and created[name]:
+            policy = dict(user.get("Policy") or {}, **TEEN_POLICY)
+            codes.append(api.request("POST", f"/Users/{created[name]}/Policy", token=token, body=policy)[0])
+    data = {GUEST: GUEST_DATA, TEEN: {"Played": True, "PlayCount": 1, "LastPlayedDate": "2026-10-30T19:00:00.0000000Z"},
+            PARENT: {"IsFavorite": True}}
+    for name, body in data.items():
+        if created.get(name):
+            codes.append(api.request("POST", f"/UserItems/{item}/UserData?userId={created[name]}", token=token, body=body)[0])
     codes.append(api.request("POST", f"/UserItems/{item}/UserData?userId={ids['admin_id']}", token=token,
                              body=ADMIN_DATA)[0])
-    ids["guest_id"] = guest_id
-    return report.add("kijkgegevens gezet via de officiële API (oude server)",
-                      bool(guest_id) and all(c in (200, 204) for c in codes),
+    ids["guest_id"] = created.get(GUEST)
+    return report.add("kijkgegevens gezet via de officiële API (oude server, 5 gebruikers)",
+                      all(created.values()) and all(c in (200, 204) for c in codes),
                       f"HTTP {codes}: beheerder 2× gezien + favoriet + beoordeling 8; gast hervatpunt 1 s + taal-/"
-                      "ondertitelvoorkeuren nld")
+                      "ondertitelvoorkeuren nld; tiener gezien + leeftijdsgrens 13 + tag 'horror' geblokkeerd; ouder favoriet")
 
 
 def expected_present(snap: dict, report: Report, label: str) -> None:
@@ -175,9 +195,76 @@ def expected_present(snap: dict, report: Report, label: str) -> None:
           and admin.get("Rating") == 8.0 and admin.get("LastPlayedDate") == "2026-11-01T20:15:00Z"
           and guest.get("PlaybackPositionTicks") == GUEST_DATA["PlaybackPositionTicks"]
           and all(prefs.get(k) == v for k, v in GUEST_PREFS.items())
-          and users.get("jl-kind", {}).get("beleid", {}).get("EnableAllFolders") is False)
+          and users.get("jl-kind", {}).get("beleid", {}).get("EnableAllFolders") is False
+          and len(users) == 5
+          and users.get(TEEN, {}).get("beleid", {}).get("BlockedTags") == TEEN_POLICY["BlockedTags"]
+          and users.get(TEEN, {}).get("beleid", {}).get("MaxParentalRating") is not None)
     report.add(f"{label}: gezette kijkgegevens aanwezig", ok,
                f"beheerder {admin}; gast hervatpunt {guest.get('PlaybackPositionTicks')} ticks; voorkeuren {prefs}")
+
+
+def resume_check(base: str, args: argparse.Namespace, report: Report, creds: dict, ids: dict, layout: str) -> None:
+    """De gast krijgt na de upgrade op de detailpagina "Hervatten" (btnReplay zichtbaar, afspeelknop = Hervatten)."""
+    from playwright.sync_api import Error as PlaywrightError
+    from playwright.sync_api import sync_playwright
+
+    tag = f"[{layout.capitalize()}]"
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(**({"executable_path": args.chromium} if args.chromium else {}))
+        try:
+            context = web_smoke.new_context(browser, layout, viewport={"width": 1440, "height": 900})
+            page = context.new_page()
+            page.set_default_timeout(30000)
+            web_smoke.ui_login(page, base, GUEST, creds["guest_password"])
+            page.wait_for_selector("#indexPage:not(.hide)", timeout=60000)
+            page.goto(f"{base}/web/#/details?id={ids['item_id']}&serverId={ids['server_id']}", wait_until="domcontentloaded")
+            try:
+                page.locator("button.btnReplay:not(.hide)").first.wait_for(state="visible", timeout=30000)
+                title = page.locator("button.btnPlay:not(.hide)").first.get_attribute("title")
+                ok = title == "Hervatten"
+            except PlaywrightError as exc:
+                title, ok = f"fout: {str(exc).splitlines()[0][:120]}", False
+            report.add(f"{tag} gast krijgt 'Hervatten' op de detailpagina (hervatpunt bewaard)", ok,
+                       f"knop 'opnieuw afspelen' zichtbaar; afspeelknop-titel {title!r} (verwacht 'Hervatten')")
+            context.close()
+        finally:
+            browser.close()
+
+
+def negative_phase(api: Api, args: argparse.Namespace, report: Report, creds: dict, dirs, container: str,
+                   old: argparse.Namespace, new: argparse.Namespace, before: dict, extra: dict) -> None:
+    """JLT-61 (b): alleen de oude image op de gemigreerde /config; daarna stille schade meten."""
+    web_smoke.start_server(old, dirs, container, fork_web=False)
+    old_healthy = web_smoke.wait_healthy(api, args.negative_timeout)
+    state = docker("inspect", "-f", "{{.State.Status}} {{.State.ExitCode}}", container, check=False).stdout.strip()
+    logs = docker("logs", "--tail", "40", container, check=False)
+    extra["negatief_logstaart"] = report.redact((logs.stdout + logs.stderr)[-1500:])
+    extra["negatief_oude_image_gezond"] = old_healthy
+    damage: list[str] = []
+    if old_healthy:
+        token, _ = login(api, creds["admin_user"], creds["admin_password"], report)
+        seen_by_old = snapshot(api, token) if token else {}
+        damage += [f"oude image: {d}" for d in (differences(before, seen_by_old) if seen_by_old else ["niet leesbaar"])]
+    docker("rm", "-f", container, check=False)
+    web_smoke.start_server(new, dirs, container, fork_web=True)
+    new_again = web_smoke.wait_healthy(api, args.start_timeout)
+    token, _ = login(api, creds["admin_user"], creds["admin_password"], report) if new_again else (None, {})
+    again = snapshot(api, token) if token else {}
+    damage += [f"12.x daarna: {d}" for d in (differences(before, again) if again else ["niet leesbaar"])]
+    docker("rm", "-f", container, check=False)
+    extra["negatief_verschillen"] = damage
+    extra["jlt61b"] = ("Sim-geslaagd: de oude image weigert de gemigreerde data" if not old_healthy else
+                       "Sim-mislukt: de oude stock-image start zonder weigering op de gemigreerde data "
+                       f"({'zonder' if not damage else 'MET'} meetbare schade aan de kijkgegevens)")
+    if args.negative_expected == "weigert":
+        ok = not old_healthy and not damage
+        label = "negatief (JLT-61 b): oude image op de gemigreerde /config faalt zichtbaar, zonder stille schade"
+    else:
+        ok = old_healthy and not damage
+        label = ("negatief (JLT-61 b), gemeten upstream-gedrag: oude stock-image start op de gemigreerde /config; "
+                 "geen stille schade (oude API en daarna 12.x = VÓÓR)")
+    report.add(label, ok, f"oude image gezond binnen {args.negative_timeout:.0f} s: {old_healthy}; container {state}; "
+               f"{len(damage)} verschillen{': ' + '; '.join(damage[:4]) if damage else ''}; {extra['jlt61b']}")
 
 
 def run(args: argparse.Namespace) -> tuple[Report, dict, int]:
@@ -248,18 +335,13 @@ def run(args: argparse.Namespace) -> tuple[Report, dict, int]:
             except Exception as exc:  # noqa: BLE001 - elke browserfout is een mislukte stap
                 report.add(f"[{layout}] browserdeel zonder onverwachte fout", False, f"{type(exc).__name__}: {exc}"[:300])
 
+        for layout in args.layouts:
+            resume_check(base, new, report, creds, ids, layout)
         docker("stop", "-t", "30", container)
         docker("rm", "-f", container)
-        web_smoke.start_server(old, dirs, container, fork_web=False)
-        old_healthy = web_smoke.wait_healthy(api, args.negative_timeout)
-        state = docker("inspect", "-f", "{{.State.Status}} {{.State.ExitCode}}", container, check=False).stdout.strip()
-        logs = docker("logs", "--tail", "40", container, check=False)
-        tail = (logs.stdout + logs.stderr)[-1500:]
-        extra["negatief_logstaart"] = report.redact(tail)
-        report.add("negatief: oude image op de gemigreerde /config draait niet stil door",
-                   not old_healthy, f"gezond binnen {args.negative_timeout:.0f} s: {old_healthy}; container: {state}")
-        docker("rm", "-f", container, check=False)
 
+        kopie_db = snapshot_dir / "data" / "jellyfin.db"
+        extra["jellyfin_db_sha256_kopie"] = hashlib.sha256(kopie_db.read_bytes()).hexdigest() if kopie_db.is_file() else None
         fresh_cache = work / "cache-terugzetten"  # de cache van 12.x hoort niet bij het teruggezette pad
         fresh_cache.mkdir()
         os.chmod(fresh_cache, 0o777 if os.geteuid() == 0 else 0o755)
@@ -272,9 +354,14 @@ def run(args: argparse.Namespace) -> tuple[Report, dict, int]:
         extra["terugzetten_verschillen"] = rollback_diff
         s_status, body = (api.request("GET", f"/Audio/{ids['item_id']}/stream?static=true", token=token)
                           if token else (0, b""))
-        report.add("terugzetten: oude image + kopie van vóór de migratie = VÓÓR, stream speelt",
-                   healthy and not rollback_diff and s_status in (200, 206) and body[:4] == b"RIFF",
-                   f"gezond {healthy}; {len(rollback_diff)} verschillen; stream HTTP {s_status}")
+        report.add("terugzetten (JLT-61 a): oude image + kopie van vóór de migratie = VÓÓR, stream speelt",
+                   healthy and not rollback_diff and s_status in (200, 206) and body[:4] == b"RIFF"
+                   and extra["jellyfin_db_sha256_kopie"] == extra["jellyfin_db_sha256_voor"],
+                   f"jellyfin.db van de kopie byte-gelijk aan vóór de migratie: "
+                   f"{extra['jellyfin_db_sha256_kopie'] == extra['jellyfin_db_sha256_voor']}; gezond {healthy}; "
+                   f"{len(rollback_diff)} verschillen; stream HTTP {s_status}")
+        docker("rm", "-f", container, check=False)
+        negative_phase(api, args, report, creds, dirs, container, old, new, before, extra)
     except (RuntimeError, OSError) as exc:
         report.add("upgradeproef zonder omgevingsfout", False, f"{type(exc).__name__}: {exc}"[:300])
         exit_code = 3
@@ -303,6 +390,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--start-timeout", type=float, default=240.0)
     parser.add_argument("--scan-timeout", type=float, default=120.0)
     parser.add_argument("--negatief-timeout", dest="negative_timeout", type=float, default=90.0)
+    parser.add_argument("--negatief-verwacht", dest="negative_expected", choices=("weigert", "start"), default="weigert",
+                        help="JLT-61 b: 'weigert' = acceptatie (oude image moet falen); 'start' = gemeten gedrag van de "
+                             "stock-images vastleggen (dan alleen: geen stille schade)")
     return parser
 
 
