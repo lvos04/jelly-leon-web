@@ -314,6 +314,9 @@ def check_validatie(where: str, entry_id: str, validatie: object) -> list[str]:
     ]
     if len(set(parts)) != len(parts):
         errors.append(f"{where}: validatie '{validatie}' bevat een waarde dubbel")
+    if set(VALIDATIE_TESTMATRIX) <= set(parts):
+        errors.append(f"{where}: validatie '{validatie}' is tegelijk Sim-geslaagd en Sim-mislukt (kies één uitkomst; "
+                      "een rij die maar deels is uitgevoerd krijgt Sim-getest, toelichting in 'opmerking')")
     return errors
 
 

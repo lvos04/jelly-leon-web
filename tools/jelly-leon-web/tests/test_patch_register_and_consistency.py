@@ -343,6 +343,14 @@ def test_evidence_jlt_testrijen_volgen_testmatrixregels(repos):
     # Sim-geslaagd mag alleen bij testrijen, niet bij een werkpakket.
     write(fork, "docs/platform-v2/EVIDENCE.json", json.dumps([dict(entry, id="B03-014")]) + "\n")
     assert any("Sim-geslaagd" in e for e in check_fork_consistency.check_evidence(fork))
+    # Eén uitkomst per testrij: geslaagd én mislukt tegelijk is tegenstrijdig (geen verborgen mislukking).
+    write(fork, "docs/platform-v2/EVIDENCE.json",
+          json.dumps([dict(entry, validatie="Sim-geslaagd; Sim-mislukt; NIET GEVALIDEERD (echte NAS)")]) + "\n")
+    assert any("tegelijk Sim-geslaagd en Sim-mislukt" in e for e in check_fork_consistency.check_evidence(fork))
+    # Een deels uitgevoerde testrij mag Sim-getest dragen (toelichting in opmerking).
+    write(fork, "docs/platform-v2/EVIDENCE.json",
+          json.dumps([dict(entry, validatie="Sim-getest; NIET GEVALIDEERD (echte NAS)")]) + "\n")
+    assert check_fork_consistency.check_evidence(fork) == []
 
 
 # --------------------------------------------------------------------------------- toolchain (ADR-0011)
