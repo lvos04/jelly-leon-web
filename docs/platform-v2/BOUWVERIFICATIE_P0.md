@@ -7,6 +7,9 @@ Zware stappen draaiden één voor één met `nice -n 10`. **Niets hiervan is op 
 
 ## 1. Samenvatting
 
+> §1–§6 zijn de metingen van de bouwer; de onafhankelijke review met herhaalde metingen, gevonden
+> problemen en reparaties staat in **§7** (o.a. 50 tool-tests, actionlint mét shellcheck, smoketest 30/30).
+
 | # | Commando (repo-root) | Exit | Uitkomst | Duur |
 |---|---|---|---|---|
 | 1 | `npm ci --no-audit --no-fund --prefer-offline` | 0 | 1724 pakketten; 10 upstream-`deprecated`-waarschuwingen | 36 s |
@@ -121,3 +124,71 @@ Beide eigen workflows zijn lokaal met actionlint en `workflow_check.py` gecontro
 
 De productiebuild en de smoketest (§1, §3) zijn niet opnieuw gedraaid: de webbroncode is sindsdien niet gewijzigd
 (alle latere commits raken alleen fork-eigen paden: docs, tools, workflows).
+
+## 7. Onafhankelijke review P0 (2026-11-09, na commit `e636db6ac`)
+
+Alles opnieuw gedraaid zoals de CI het doet, op dezelfde omgeving (venv `~/.venvs/jelly-leon-web`, Node v22.23.4,
+npm 10.9.9, `nice -n 10`, één zware stap tegelijk).
+
+| Commando | Exit | Uitkomst |
+|---|---|---|
+| `npm ci --no-audit --no-fund --prefer-offline` | 0 | 1724 pakketten (26 s) |
+| `npm run lint` | 0 | 0 fouten, 103 upstream-waarschuwingen |
+| `npm run stylelint` / `npm run build:check` | 0 / 0 | geen fouten |
+| `npm test -- --maxWorkers=2` | 0 | 12 bestanden, 160/160 |
+| `npm run build:production` + `npm run escheck` | 0 / 0 | webpack 5.99.9, 2 upstream-groottewaarschuwingen, 2317 bestanden; ES-versie in orde |
+| `check_fork_consistency.py`, `patch_register_check.py`, `workflow_check.py --overzicht` | 0 | basis v10.11.11, 0 core-patches, 9 upstream-workflows bewaakt |
+| `pytest -q -c tools/jelly-leon-web/pytest.ini tools/jelly-leon-web/tests` | 0 | **50 geslaagd** (31 bestaande + 19 nieuwe) |
+| `actionlint` **met** shellcheck 0.11.0 (`shellcheck-py`) op beide eigen workflows | 0 | geen meldingen |
+| `web_smoke.py --modus fork` | 0 | **30/30** (21 + herstart/terugzetten/vooruit, §7.2) |
+| `web_smoke.py --modus stock` | 0 | **24/24** (21 + herstart) |
+| Gepinde acties (`git ls-remote --tags`) | — | checkout v6.0.1, setup-python v6.1.0, setup-node v6.5.0, upload-/download-artifact v5.0.0: SHA's kloppen |
+| `git diff --name-only 35c0793e HEAD` buiten fork-eigen paden | — | leeg: webcode, `package.json`, branding en technische identiteit ongewijzigd |
+| GitHub Actions run [42610233474](https://github.com/lvos04/jelly-leon-web/actions/runs/42610233474) op `1fa0ab657` | success | 7/7 jobs; 50 tool-tests; shellcheck 0.11.0; smoketest **30/30** op de runner (`test-evidence/p0-github-ci-run-42610233474.json`) |
+
+### 7.1 Gevonden en gerepareerd
+
+1. **`upstream-sync.yml`, open bij fout:** `upstream_sync.py kies … | tee` draaide zonder `pipefail` (GitHub-standaard
+   `bash -e`); een mislukte tagdetectie gaf dus stil "geen kandidaat". Nu `defaults.run.shell: bash`
+   (`-eo pipefail`) in beide eigen workflows; getest met het echte run-script.
+2. **`upstream-sync.yml`, pushtoken:** `JLW_SYNC_PUSH_TOKEN` stond in dezelfde job die upstream-code en
+   `npm ci` (lifecycle-scripts van derden) uitvoert, en in de push-URL. Een kwaadaardige afhankelijkheid kon het token
+   via een git-hook of `insteadOf` buitmaken. Nu: aparte job `beoordeling` op een schone runner, alleen met het
+   artefact van een volledig geslaagde sync; hooks uit, token alleen via de git-config-omgeving (gemaskeerd), en een
+   bestaande `sync/<tag>` wordt nooit overschreven (geen force-push). ADR-0006 punt 4.
+3. **`upstream-sync.yml`, bundle:** gebruikte `github.event.repository.default_branch`, dat bij `schedule`-events
+   ontbreekt; de upstream-tag zat niet in de bundle. Nu basis `GITHUB_SHA` + tag in de bundle; artefacten per tag.
+4. **CI zonder shellcheck:** `actionlint -shellcheck=` zette de shell-controle uit. Nu met `shellcheck-py==0.11.0.1`
+   (vastgezet in `requirements-dev.txt`).
+5. **Smoketest kon "geslaagd" rapporteren zonder browserdeel:** bij ontbrekende Playwright (of mislukte serverstart)
+   was alleen de exitcode 3, het JSON-rapport zei "geslaagd". Nu staat de ontbrekende stap als mislukt in het rapport.
+6. **Ontbrekende test voor herstart/terugzetten (punt 6 van de review, B03-013-webdeel):** toegevoegd, zie §7.2.
+
+Nieuwe tests: `tools/jelly-leon-web/tests/test_sync_workflow.py` (7: pipefail overal, token alleen in een job zonder
+code van derden, mislukte detectie faalt, invoer-tag gevalideerd, bundle → schone runner → push zonder tokenlek of
+hooks, bestaande branch niet overschreven, zonder token niets gepusht) en `test_web_smoke_unit.py` (12: redactie,
+nooit geslaagd zonder stappen, dataverlies/kapotte stream/ACL-lek/verkeerde webclient worden herkend, onbereikbare
+server en ontbrekende Playwright geven "mislukt").
+
+### 7.2 Herstart en terugzetten (Sim-getest)
+
+Na het browserdeel (alleen als het script de server zelf start; `--zonder-herstart` slaat het over):
+
+| Fase | Wat | fork | stock |
+|---|---|---|---|
+| herstart | `docker restart`; juiste webclient, zelfde server-ID, beheerder logt in met hetzelfde wachtwoord, testnummer met hetzelfde ID, `GET /Audio/<id>/stream` 200 (RIFF, 88 244 bytes), kinderprofiel 0 resultaten | ✔ (3 stappen) | ✔ (3) |
+| terugzetten | nieuwe container met **dezelfde** `/config`, zonder fork-mount = stock-webclient van de image (vorige binary) — zelfde controles | ✔ (3) | — |
+| vooruit | weer met de fork-build — zelfde controles | ✔ (3) | — |
+
+Dit toont voor het webdeel dat wisselen tussen fork-build en stock-webclient de gebruikers, bibliotheek, streams en
+server-ACL niet raakt. Het **DB-back-up-deel** van B03-013 (terugzetten van de serverdatabase) hoort bij de server
+(`lvos04/jelly-leon`) en de echte NAS: NIET GEVALIDEERD.
+
+### 7.3 Niet gedaan / blijft open
+
+- Geen eigen image voor deze repo (ADR-0008): "alles-in-één image bouwt, start met lege `/appdata`, herstart zonder
+  dataverlies" is niet van toepassing. De **web-build binnen de jelly-leon-image** is nog niet getest: de
+  jelly-leon-CI vervangt de web-stage in P0 door de upstream-dist, en de web-stage (`COPY --from=jelly-leon-web . .`,
+  `npm ci` in Docker) loopt in deze bouwomgeving vast op de GitHub-archief-403 → followup voor `lvos04/jelly-leon`.
+- `upstream-sync.yml` is nog steeds niet op GitHub gedraaid (alleen vanaf de standaardbranch); de run-scripts zijn
+  wel lokaal in bash getest.

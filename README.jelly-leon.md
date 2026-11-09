@@ -13,9 +13,10 @@ gebaseerd op Jellyfin, met dank aan alle [upstream-bijdragers](CONTRIBUTORS.md).
 - 0 core-patches: de broncode is identiek aan upstream v10.11.11 ([`PATCHES.md`](docs/platform-v2/PATCHES.md)).
 - Forkregels, upstream-sync en CI: [`tools/jelly-leon-web/`](tools/jelly-leon-web), [`.github/workflows/jelly-leon-web-ci.yml`](.github/workflows/jelly-leon-web-ci.yml),
   [`.github/workflows/upstream-sync.yml`](.github/workflows/upstream-sync.yml).
-- Lokaal gemeten: `npm ci`, eslint, stylelint, tsc, vitest (160/160), productiebuild, es-check en de
-  web-client-smoketest (21/21, Chromium tegen de officiële server) — zie [`BOUWVERIFICATIE_P0.md`](docs/platform-v2/BOUWVERIFICATIE_P0.md).
-- Jelly Leon Web-CI op GitHub geslaagd (run 42601333719, 7/7 jobs, smoketest 21/21 op een GitHub-runner).
+- Lokaal gemeten: `npm ci`, eslint, stylelint, tsc, vitest (160/160), productiebuild, es-check, 50 tool-tests en de
+  web-client-smoketest (fork 30/30 incl. herstart en terugzetten, Chromium tegen de officiële server) — zie
+  [`BOUWVERIFICATIE_P0.md`](docs/platform-v2/BOUWVERIFICATIE_P0.md) §7 (review).
+- Jelly Leon Web-CI op GitHub geslaagd (runs 42601333719 en 42610233474, 7/7 jobs, smoketest 30/30 op een GitHub-runner).
 - Niet gevalideerd: echte tv's/telefoons (D15), echte NAS, een echte run van `upstream-sync.yml`.
 
 ## Documenten

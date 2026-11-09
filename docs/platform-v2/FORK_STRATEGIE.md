@@ -122,7 +122,10 @@ De ID's JLW-0001…0003 zijn een planning; ze worden pas in het register opgenom
   `nieuwste` nu **v12.4**) → branch `sync/<tag>` (merge binnen de reeks, anders **herbasis**: upstream-tag + fork-eigen
   paden + geregistreerde patches) → forkregels, eslint, stylelint, tsc, vitest, build, es-check en smoketest tegen de
   officiële server **van dezelfde versie**. Elke fout = workflow faalt (EX48); **nooit automatisch naar productie**.
-- Server en web horen samen naar dezelfde upstream-tag; de image van `lvos04/jelly-leon` bouwt de web-client mee.
+- Server en web horen samen naar dezelfde upstream-tag; de image van `lvos04/jelly-leon` bouwt de web-client mee
+  (ontwerp: in P0 vervangt de jelly-leon-CI die web-stage nog door de upstream-dist, dus de web-build binnen de image
+  is NIET GEVALIDEERD).
+- Het pushtoken van de sync komt nooit in de job die upstream-code of npm uitvoert (ADR-0006 punt 4).
 - **Echte syncproef v12.4 (2026-11-09, lokaal, niets gepusht)**: gewone merge 30 conflicten (upstream-backports),
   herbasis 0 conflicten, maar de sync faalt terecht op (1) `workflow_run.yml` in v12.4 dat upstream-geheimen zonder
   repository-guard doorgeeft en (2) de eis Node ≥ 24 / npm ≥ 11. Zie
@@ -136,9 +139,9 @@ De ID's JLW-0001…0003 zijn een planning; ze worden pas in het register opgenom
 | eslint / stylelint / tsc | job *kwaliteit* | 0 fouten (eslint 103 upstream-waarschuwingen) / 0 / 0 |
 | vitest | job *kwaliteit* | 12 bestanden, 160/160 |
 | productiebuild + es-check | job *build* | geslaagd (2 upstream-groottewaarschuwingen), 2317 bestanden, ES5 in orde |
-| forkregels + 31 tool-tests | job *forkregels* | geslaagd |
-| web-client-smoketest | job *web-e2e* | fork 21/21, stock 21/21 (Sim-getest) |
-| GitHub-runs | Actions | `jelly-leon-web-ci.yml`: run 42601333719 op `a076efb74` **geslaagd** (7/7 jobs, smoketest 21/21); `upstream-sync.yml`: **NIET GEVALIDEERD** (alleen vanaf de standaardbranch) |
+| forkregels + 50 tool-tests, actionlint + shellcheck | job *forkregels* | geslaagd (review P0) |
+| web-client-smoketest | job *web-e2e* | fork 30/30, stock 24/24 incl. herstart en terugzetten (Sim-getest, review P0) |
+| GitHub-runs | Actions | `jelly-leon-web-ci.yml`: run 42601333719 op `a076efb74` en run 42610233474 op `1fa0ab657` **geslaagd** (7/7 jobs, smoketest 21/21 resp. 30/30); `upstream-sync.yml`: **NIET GEVALIDEERD** (alleen vanaf de standaardbranch) |
 
 ## 9. Licentie (GPL)
 

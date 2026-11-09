@@ -20,6 +20,13 @@
 3. **Nooit naar productie:** geen image, geen release, standaardbranch ongemoeid. Resultaat als git-bundle; alleen met
    geheim `JLW_SYNC_PUSH_TOKEN` (contents + workflows) wordt `sync/<tag>` gepusht ter beoordeling. Overnemen en
    release (samen met de server) zijn handmatige R2-stappen.
+4. **Pushtoken gescheiden van upstream-code** (aanvulling review P0): de sync-job voert upstream-code en
+   npm-afhankelijkheden uit en krijgt daarom **geen** geheim. Alleen een volledig geslaagde sync levert het artefact
+   `upstream-sync-web-geslaagd-<tag>` (bundle). De aparte job `beoordeling` haalt die op een schone runner op en pusht
+   zonder hooks, met het token alleen in de git-config-omgeving (niet in URL of argv, gemaskeerd). Een bestaande
+   `sync/<tag>` wordt nooit overschreven (geen force-push). Alle run-stappen draaien met `bash -eo pipefail`, zodat
+   een mislukte tagdetectie nooit als "geen kandidaat" doorgaat. Getest in `tools/jelly-leon-web/tests/test_sync_workflow.py`
+   (de echte run-scripts in bash tegen nep-remotes).
 
 ## Echte meting (2026-11-09, tijdelijke kloon, niets gepusht)
 

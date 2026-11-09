@@ -1,0 +1,24 @@
+{
+  "workflow": "Jelly Leon Web CI (.github/workflows/jelly-leon-web-ci.yml)",
+  "run": "https://github.com/lvos04/jelly-leon-web/actions/runs/42610233474",
+  "trigger": "push naar ccr-c133d7a0-kuz1cv (review P0)",
+  "commit": "1fa0ab6572985669135f4293843f5123cd9a04c4",
+  "gestart_utc": "2026-11-09T11:35:20Z",
+  "beeindigd_utc": "2026-11-09T11:43:42Z",
+  "resultaat": "success",
+  "jobs": [
+    {"job": "Forkregels (patchregister, identiteit, workflows, tool-tests)", "resultaat": "success", "detail": "forkconsistentie in orde, patchregister in orde (0 core-patches), workflows in orde (9 upstream bewaakt, 2 eigen vastgezet), pytest 50 geslaagd (incl. test_sync_workflow.py en test_web_smoke_unit.py), actionlint mét shellcheck 0.11.0 zonder meldingen"},
+    {"job": "Upstream-kwaliteit (lint)", "resultaat": "success", "detail": "eslint 0 fouten (upstream-waarschuwingen als annotaties)"},
+    {"job": "Upstream-kwaliteit (stylelint)", "resultaat": "success", "detail": ""},
+    {"job": "Upstream-kwaliteit (build:check)", "resultaat": "success", "detail": "tsc --noEmit"},
+    {"job": "Upstream-kwaliteit (test)", "resultaat": "success", "detail": "vitest"},
+    {"job": "Productiebuild + artefact", "resultaat": "success", "detail": "artefact jelly-leon-web-10.11.11-jl.0-1fa0ab657298.tar.gz"},
+    {"job": "Web-client-smoketest (Chromium + officiële server, simulator)", "resultaat": "success", "detail": "sha256-controle van het artefact OK; web_smoke.py --modus fork tegen jellyfin/jellyfin:10.11.11@sha256:aefb67e6…: 30/30 stappen geslaagd, incl. herstart, terugzetten naar de stock-webclient met dezelfde /config en weer vooruit (telkens gegevens behouden, stream 200, kinderprofiel 0 resultaten)"}
+  ],
+  "artefacten": [
+    {"naam": "jelly-leon-web-dist", "bytes": 34861634, "digest": "sha256:8095ab15e78f348f91a53410fda429b1673889e560ff30065e98f6ef4e566946"},
+    {"naam": "web-smoke", "bytes": 68272, "digest": "sha256:def48cdbaea66b5d34bb830d090c1da1b6e1c8e461deb1d74fee495faa349d0d"}
+  ],
+  "niet_uitgevoerd": "upstream-sync.yml (scheduled/handmatig alleen vanaf de standaardbranch; de run-scripts zijn lokaal getest in test_sync_workflow.py); echte clients/tv's (D15); echte NAS; web-build binnen de jelly-leon-image",
+  "validatie": "Sim-getest (GitHub-runner + headless Chromium + officiële serverimage; geen echte apparaten)"
+}

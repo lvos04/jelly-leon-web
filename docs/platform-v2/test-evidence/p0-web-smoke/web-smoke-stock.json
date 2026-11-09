@@ -3,11 +3,11 @@
   "modus": "stock",
   "server_image": "docker.io/jellyfin/jellyfin:10.11.11@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db",
   "basis_url": "http://127.0.0.1:38097",
-  "gestart_utc": "2026-11-09T10:13:07Z",
-  "beeindigd_utc": "2026-11-09T10:13:45Z",
+  "gestart_utc": "2026-11-09T11:31:24Z",
+  "beeindigd_utc": "2026-11-09T11:32:31Z",
   "resultaat": "geslaagd",
-  "aantal_stappen": 21,
-  "geslaagd": 21,
+  "aantal_stappen": 24,
+  "geslaagd": 24,
   "validatie": "Sim-getest (headless Chromium + officiële serverimage; geen echte apparaten, D15)",
   "feiten": {
     "server_productnaam": "Jellyfin Server",
@@ -21,127 +21,145 @@
       "stap": "server gezond",
       "geslaagd": true,
       "detail": "GET /health → Healthy",
-      "tijd_utc": "2026-11-09T10:13:21Z"
+      "tijd_utc": "2026-11-09T11:31:34Z"
     },
     {
       "stap": "technische identiteit ongewijzigd",
       "geslaagd": true,
       "detail": "ProductName='Jellyfin Server', Version='10.11.11' (verwacht 10.11.11)",
-      "tijd_utc": "2026-11-09T10:13:21Z"
+      "tijd_utc": "2026-11-09T11:31:34Z"
     },
     {
       "stap": "stock-webclient wordt geserveerd",
       "geslaagd": true,
       "detail": "HTTP 200",
-      "tijd_utc": "2026-11-09T10:13:21Z"
+      "tijd_utc": "2026-11-09T11:31:34Z"
     },
     {
       "stap": "zichtbare naam in P0 ongewijzigd ('Jellyfin', ADR-0003)",
       "geslaagd": true,
       "detail": "index.html <title>Jellyfin</title> aanwezig; manifest.json name='Jellyfin' (HTTP 200)",
-      "tijd_utc": "2026-11-09T10:13:21Z"
+      "tijd_utc": "2026-11-09T11:31:34Z"
     },
     {
       "stap": "eerste-startwizard (API)",
       "geslaagd": true,
       "detail": "HTTP [204, 200, 204, 204, 204]",
-      "tijd_utc": "2026-11-09T10:13:22Z"
+      "tijd_utc": "2026-11-09T11:31:35Z"
     },
     {
       "stap": "beheerder logt in via API",
       "geslaagd": true,
       "detail": "HTTP 200",
-      "tijd_utc": "2026-11-09T10:13:23Z"
+      "tijd_utc": "2026-11-09T11:31:36Z"
     },
     {
       "stap": "bibliotheek 'Muziek' aanmaken",
       "geslaagd": true,
       "detail": "HTTP 204",
-      "tijd_utc": "2026-11-09T10:13:23Z"
+      "tijd_utc": "2026-11-09T11:31:36Z"
     },
     {
       "stap": "bibliotheekscan vindt het testnummer",
       "geslaagd": true,
       "detail": "item dbd1b4c93b1c7df92633765df6054ff3",
-      "tijd_utc": "2026-11-09T10:13:23Z"
+      "tijd_utc": "2026-11-09T11:31:36Z"
     },
     {
       "stap": "kinderprofiel zonder bibliotheektoegang",
       "geslaagd": true,
       "detail": "aanmaken HTTP 200, beleid HTTP 204 (EnableAllFolders=false)",
-      "tijd_utc": "2026-11-09T10:13:24Z"
+      "tijd_utc": "2026-11-09T11:31:37Z"
     },
     {
       "stap": "zoeken respecteert server-ACL (API)",
       "geslaagd": true,
       "detail": "beheerder 1 resultaat, kinderprofiel 0 (verwacht 1 / 0)",
-      "tijd_utc": "2026-11-09T10:13:24Z"
+      "tijd_utc": "2026-11-09T11:31:37Z"
     },
     {
       "stap": "zonder token geweigerd",
       "geslaagd": true,
       "detail": "GET /Users/<id> zonder token → HTTP 401 (verwacht 401)",
-      "tijd_utc": "2026-11-09T10:13:24Z"
+      "tijd_utc": "2026-11-09T11:31:37Z"
     },
     {
       "stap": "aanmeldpagina in het Nederlands (browser nl-NL)",
       "geslaagd": true,
       "detail": "gevonden: Meld je aan, Aanmelden, Gebruiker, Wachtwoord",
-      "tijd_utc": "2026-11-09T10:13:29Z"
+      "tijd_utc": "2026-11-09T11:31:42Z"
     },
     {
       "stap": "fout wachtwoord geweigerd (negatieve test)",
       "geslaagd": true,
-      "detail": "melding zichtbaar, url /login?serverid=a446ba95adeb4127aacac1089c3cc788&url=%2Fhome",
-      "tijd_utc": "2026-11-09T10:13:32Z"
+      "detail": "melding zichtbaar, url /login?serverid=d33796278e6a49dd992b0bbc33d33388&url=%2Fhome",
+      "tijd_utc": "2026-11-09T11:31:45Z"
     },
     {
       "stap": "inloggen → startscherm met bibliotheek",
       "geslaagd": true,
       "detail": "url /home",
-      "tijd_utc": "2026-11-09T10:13:34Z"
+      "tijd_utc": "2026-11-09T11:31:47Z"
     },
     {
       "stap": "zoeken vindt het testnummer (UI)",
       "geslaagd": true,
       "detail": "zoekterm 'Sinus' → 'Sinus 440 Hz'",
-      "tijd_utc": "2026-11-09T10:13:35Z"
+      "tijd_utc": "2026-11-09T11:31:48Z"
     },
     {
       "stap": "afspelen start een stream",
       "geslaagd": true,
       "detail": "GET /Audio/<id>/… → HTTP 200 (verwacht 200/206)",
-      "tijd_utc": "2026-11-09T10:13:35Z"
+      "tijd_utc": "2026-11-09T11:31:48Z"
     },
     {
       "stap": "kinderprofiel ziet de titel niet in zoekresultaten (UI)",
       "geslaagd": true,
       "detail": "melding 'Geen resultaten gevonden', geen testnummer zichtbaar",
-      "tijd_utc": "2026-11-09T10:13:39Z"
+      "tijd_utc": "2026-11-09T11:31:53Z"
     },
     {
       "stap": "startscherm 360px zonder horizontale overloop",
       "geslaagd": true,
       "detail": "scrollWidth 360 px, venster 360 px; stock-360-startscherm.jpg",
-      "tijd_utc": "2026-11-09T10:13:40Z"
+      "tijd_utc": "2026-11-09T11:31:55Z"
     },
     {
       "stap": "startscherm 390px zonder horizontale overloop",
       "geslaagd": true,
       "detail": "scrollWidth 390 px, venster 390 px; stock-390-startscherm.jpg",
-      "tijd_utc": "2026-11-09T10:13:42Z"
+      "tijd_utc": "2026-11-09T11:31:56Z"
     },
     {
       "stap": "startscherm 768px zonder horizontale overloop",
       "geslaagd": true,
       "detail": "scrollWidth 768 px, venster 768 px; stock-768-startscherm.jpg",
-      "tijd_utc": "2026-11-09T10:13:43Z"
+      "tijd_utc": "2026-11-09T11:31:58Z"
     },
     {
       "stap": "startscherm 1440px zonder horizontale overloop",
       "geslaagd": true,
       "detail": "scrollWidth 1440 px, venster 1440 px; stock-1440-startscherm.jpg",
-      "tijd_utc": "2026-11-09T10:13:44Z"
+      "tijd_utc": "2026-11-09T11:31:59Z"
+    },
+    {
+      "stap": "herstart: server gezond, juiste webclient",
+      "geslaagd": true,
+      "detail": "HTTP 200; stock-webclient van de image geserveerd",
+      "tijd_utc": "2026-11-09T11:32:30Z"
+    },
+    {
+      "stap": "herstart: gegevens behouden",
+      "geslaagd": true,
+      "detail": "server-ID gelijk; beheerder logt in met hetzelfde wachtwoord: HTTP 200; testnummer met hetzelfde ID: HTTP 200",
+      "tijd_utc": "2026-11-09T11:32:31Z"
+    },
+    {
+      "stap": "herstart: stream en server-ACL werken",
+      "geslaagd": true,
+      "detail": "GET /Audio/<id>/stream → HTTP 200, 88244 bytes; kinderprofiel logt in (HTTP 200) en vindt 0 resultaten (verwacht 0)",
+      "tijd_utc": "2026-11-09T11:32:31Z"
     }
   ]
 }
