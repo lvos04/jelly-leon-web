@@ -1,0 +1,147 @@
+{
+  "test": "web-client-smoketest",
+  "modus": "stock",
+  "server_image": "docker.io/jellyfin/jellyfin:10.11.11@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db",
+  "basis_url": "http://127.0.0.1:38097",
+  "gestart_utc": "2026-11-09T10:13:07Z",
+  "beeindigd_utc": "2026-11-09T10:13:45Z",
+  "resultaat": "geslaagd",
+  "aantal_stappen": 21,
+  "geslaagd": 21,
+  "validatie": "Sim-getest (headless Chromium + officiële serverimage; geen echte apparaten, D15)",
+  "feiten": {
+    "server_productnaam": "Jellyfin Server",
+    "server_versie": "10.11.11",
+    "web_index_sha256": "d06008c68ab653f91bdefc6aac3a4e654916b97618750403922762b235468f99",
+    "testitem_naam": "01 - Sinus 440 Hz",
+    "browser": "Chromium 153.0.8010.12 (headless)"
+  },
+  "stappen": [
+    {
+      "stap": "server gezond",
+      "geslaagd": true,
+      "detail": "GET /health → Healthy",
+      "tijd_utc": "2026-11-09T10:13:21Z"
+    },
+    {
+      "stap": "technische identiteit ongewijzigd",
+      "geslaagd": true,
+      "detail": "ProductName='Jellyfin Server', Version='10.11.11' (verwacht 10.11.11)",
+      "tijd_utc": "2026-11-09T10:13:21Z"
+    },
+    {
+      "stap": "stock-webclient wordt geserveerd",
+      "geslaagd": true,
+      "detail": "HTTP 200",
+      "tijd_utc": "2026-11-09T10:13:21Z"
+    },
+    {
+      "stap": "zichtbare naam in P0 ongewijzigd ('Jellyfin', ADR-0003)",
+      "geslaagd": true,
+      "detail": "index.html <title>Jellyfin</title> aanwezig; manifest.json name='Jellyfin' (HTTP 200)",
+      "tijd_utc": "2026-11-09T10:13:21Z"
+    },
+    {
+      "stap": "eerste-startwizard (API)",
+      "geslaagd": true,
+      "detail": "HTTP [204, 200, 204, 204, 204]",
+      "tijd_utc": "2026-11-09T10:13:22Z"
+    },
+    {
+      "stap": "beheerder logt in via API",
+      "geslaagd": true,
+      "detail": "HTTP 200",
+      "tijd_utc": "2026-11-09T10:13:23Z"
+    },
+    {
+      "stap": "bibliotheek 'Muziek' aanmaken",
+      "geslaagd": true,
+      "detail": "HTTP 204",
+      "tijd_utc": "2026-11-09T10:13:23Z"
+    },
+    {
+      "stap": "bibliotheekscan vindt het testnummer",
+      "geslaagd": true,
+      "detail": "item dbd1b4c93b1c7df92633765df6054ff3",
+      "tijd_utc": "2026-11-09T10:13:23Z"
+    },
+    {
+      "stap": "kinderprofiel zonder bibliotheektoegang",
+      "geslaagd": true,
+      "detail": "aanmaken HTTP 200, beleid HTTP 204 (EnableAllFolders=false)",
+      "tijd_utc": "2026-11-09T10:13:24Z"
+    },
+    {
+      "stap": "zoeken respecteert server-ACL (API)",
+      "geslaagd": true,
+      "detail": "beheerder 1 resultaat, kinderprofiel 0 (verwacht 1 / 0)",
+      "tijd_utc": "2026-11-09T10:13:24Z"
+    },
+    {
+      "stap": "zonder token geweigerd",
+      "geslaagd": true,
+      "detail": "GET /Users/<id> zonder token → HTTP 401 (verwacht 401)",
+      "tijd_utc": "2026-11-09T10:13:24Z"
+    },
+    {
+      "stap": "aanmeldpagina in het Nederlands (browser nl-NL)",
+      "geslaagd": true,
+      "detail": "gevonden: Meld je aan, Aanmelden, Gebruiker, Wachtwoord",
+      "tijd_utc": "2026-11-09T10:13:29Z"
+    },
+    {
+      "stap": "fout wachtwoord geweigerd (negatieve test)",
+      "geslaagd": true,
+      "detail": "melding zichtbaar, url /login?serverid=a446ba95adeb4127aacac1089c3cc788&url=%2Fhome",
+      "tijd_utc": "2026-11-09T10:13:32Z"
+    },
+    {
+      "stap": "inloggen → startscherm met bibliotheek",
+      "geslaagd": true,
+      "detail": "url /home",
+      "tijd_utc": "2026-11-09T10:13:34Z"
+    },
+    {
+      "stap": "zoeken vindt het testnummer (UI)",
+      "geslaagd": true,
+      "detail": "zoekterm 'Sinus' → 'Sinus 440 Hz'",
+      "tijd_utc": "2026-11-09T10:13:35Z"
+    },
+    {
+      "stap": "afspelen start een stream",
+      "geslaagd": true,
+      "detail": "GET /Audio/<id>/… → HTTP 200 (verwacht 200/206)",
+      "tijd_utc": "2026-11-09T10:13:35Z"
+    },
+    {
+      "stap": "kinderprofiel ziet de titel niet in zoekresultaten (UI)",
+      "geslaagd": true,
+      "detail": "melding 'Geen resultaten gevonden', geen testnummer zichtbaar",
+      "tijd_utc": "2026-11-09T10:13:39Z"
+    },
+    {
+      "stap": "startscherm 360px zonder horizontale overloop",
+      "geslaagd": true,
+      "detail": "scrollWidth 360 px, venster 360 px; stock-360-startscherm.jpg",
+      "tijd_utc": "2026-11-09T10:13:40Z"
+    },
+    {
+      "stap": "startscherm 390px zonder horizontale overloop",
+      "geslaagd": true,
+      "detail": "scrollWidth 390 px, venster 390 px; stock-390-startscherm.jpg",
+      "tijd_utc": "2026-11-09T10:13:42Z"
+    },
+    {
+      "stap": "startscherm 768px zonder horizontale overloop",
+      "geslaagd": true,
+      "detail": "scrollWidth 768 px, venster 768 px; stock-768-startscherm.jpg",
+      "tijd_utc": "2026-11-09T10:13:43Z"
+    },
+    {
+      "stap": "startscherm 1440px zonder horizontale overloop",
+      "geslaagd": true,
+      "detail": "scrollWidth 1440 px, venster 1440 px; stock-1440-startscherm.jpg",
+      "tijd_utc": "2026-11-09T10:13:44Z"
+    }
+  ]
+}

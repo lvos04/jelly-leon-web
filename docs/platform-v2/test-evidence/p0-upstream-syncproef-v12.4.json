@@ -1,0 +1,32 @@
+{
+  "test": "upstream-syncproef webclient naar de nieuwste stabiele upstream-tag",
+  "datum": "2026-11-09",
+  "omgeving": "tijdelijke lokale kloon van jelly-leon-web op commit d7cd9e9dc (niets gepusht, kloon na afloop verwijderd)",
+  "werktuig": "tools/jelly-leon-web/upstream_sync.py",
+  "kies": {
+    "bron": "https://github.com/jellyfin/jellyfin-web.git",
+    "huidige_basis": "v10.11.11",
+    "spoor_patch": {"kandidaat": null, "nieuwere_stabiele_tags": []},
+    "spoor_nieuwste": {"kandidaat": "v12.4", "nieuwere_stabiele_tags": ["v12.0", "v12.1", "v12.2", "v12.3", "v12.4"]}
+  },
+  "merge_methode_merge": {
+    "commando": "upstream_sync.py merge --tag v12.4 --methode merge",
+    "exitcode": 2,
+    "uitkomst": "INCOMPATIBEL: 30 conflicten, allemaal in bestanden die de fork nooit wijzigde (upstream-backports op de 10.11-releasebranch; o.a. package.json, package-lock.json, src/index.jsx, src/scripts/browser.js). Werkboom schoon teruggezet, geen sync-branch achtergelaten."
+  },
+  "merge_methode_herbasis": {
+    "commando": "upstream_sync.py merge --tag v12.4 --maak-lokale-tag (auto → herbasis)",
+    "exitcode": 0,
+    "upstream_commit": "0a580ce8df89282dfd120b6d5efb8e106da23bd5",
+    "uitkomst": "branch sync/v12.4 = upstream v12.4 + fork-eigen paden (0 core-patches), merge-commit met ouders d7cd9e9dc en 0a580ce8d; baseline 12.4.0-jl.0"
+  },
+  "controles_na_sync": [
+    {"controle": "check_fork_consistency.py", "exitcode": 0, "detail": "technische identiteit jellyfin-web 12.4.0"},
+    {"controle": "patch_register_check.py", "exitcode": 0, "detail": "0 core-patches"},
+    {"controle": "workflow_check.py", "exitcode": 1, "detail": "upstream v12.4 voegt .github/workflows/workflow_run.yml toe: jobs 'automation' en 'deploy' geven JF_BOT_TOKEN en CLOUDFLARE_* door zonder repository-guard (10 bevindingen) → guard-patch nodig (JLW-patch) vóór overname"},
+    {"controle": "pytest tools/jelly-leon-web/tests", "exitcode": 1, "detail": "30 geslaagd, 1 mislukt: test_real_repository_workflows_are_guarded (zelfde oorzaak)"},
+    {"controle": "npm ci (Node 22.23.4, npm 10.9.9)", "exitcode": 1, "detail": "EBADENGINE: v12.4 eist node >=24.0.0 en npm >=11.0.0 (engine-strict); toolchainbesluit nodig, samen met de server (v12.4 eist .NET 10)"}
+  ],
+  "conclusie": "De sync naar v12.4 faalt terecht op twee punten (onbewaakte upstream-geheimen in workflow_run.yml en Node 24-eis): EX48-gedrag met echte upstream-code aangetoond. Er is niets gedeployd of gepusht. Bouwen/testen van v12.4 zelf is hier niet uitgevoerd (andere Node-versie nodig) — NIET GEVALIDEERD.",
+  "validatie": "Sim-geslaagd (lokaal, echte upstream-tags; echte GitHub-run van upstream-sync.yml nog niet uitgevoerd)"
+}
