@@ -1,6 +1,6 @@
 # ADR-0007 — Upstream-workflows ongewijzigd; guards bewaakt door `workflow_check.py`
 
-- **Status:** Aanvaard (P0, 2026-11-09)
+- **Status:** Aanvaard (P0, 2026-11-09); aangevuld in P4-0 met guard-patch JLW-0001 (ADR-0011)
 - **Context:** Door het samenvoegen van de upstream-historie staan de workflows van jellyfin-web in de fork. Opdracht:
   upstream-workflows niet stilletjes uitzetten; documenteren en repository-guards toevoegen waar ze upstream-geheimen
   nodig hebben. Upstream-geheimen: `JF_BOT_TOKEN` (bot-commentaar, labels, stale), `CLOUDFLARE_API_TOKEN`/
@@ -34,3 +34,9 @@
   doorgeeft (gemeten, 10 bevindingen) → guard-patch nodig vóór overname (ADR-0006).
 - `jelly-leon-web-ci.yml` draaide op GitHub (run 42601333719, geslaagd) zonder dat een upstream-workflow afging op de
   fork-branch `ccr-c133d7a0-kuz1cv` (alleen "Jelly Leon Web CI" verscheen). `upstream-sync.yml`: NIET GEVALIDEERD.
+
+## Aanvulling P4-0 (2026-11-09, ADR-0011)
+
+v12.4 brengt `workflow_run.yml` mee, dat upstream-geheimen zonder guard doorgeeft. Zoals hierboven voorzien is de guard
+toegevoegd als geregistreerde patch **JLW-0001**. `workflow_check.py` telt een guard sindsdien alleen als conjunct op
+het hoogste niveau van de `if:` (`guard && …`); `guard || …` geldt als onbewaakt.

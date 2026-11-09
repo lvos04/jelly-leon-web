@@ -14,4 +14,9 @@
 - Wat deze repo oplevert: de broncode (build-context voor de jelly-leon-image) en per CI-run het artefact
   `jelly-leon-web-<forkversie>-<commit>.tar.gz` met `.sha256` en `bouwinfo.json` (zie `.github/workflows/jelly-leon-web-ci.yml`).
 
+- Sinds P4-0 (v12.4, ADR-0011) hoort de web-stage van de `jelly-leon`-image te bouwen met `NODE_IMAGE` =
+  `toolchain.node_image` uit `tools/jelly-leon-web/baseline.json` (Node 24.22.2 op digest) en `.npmrc` vóór `npm ci`
+  mee te kopiëren (12.x zet daar `engine-strict`, `ignore-scripts` en `min-release-age`). Dat aanpassen gebeurt in
+  `lvos04/jelly-leon`, niet hier.
+
 Status: niets hiervan is op een echte TrueNAS geïnstalleerd of getest — **NIET GEVALIDEERD (echte NAS)**.

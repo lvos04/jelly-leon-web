@@ -2,7 +2,8 @@
 
 Bron: uitvoeringspakket `TrueNAS_Home_Platform_V2_VOLLEDIG_2026-11-09.zip` (peildatum 9 november 2026).
 
-**Rol van deze repo (vast besluit):** Fork van jellyfin/jellyfin-web v10.11.11.
+**Rol van deze repo (vast besluit):** Fork van jellyfin/jellyfin-web — sinds P4-0 (2026-11-09) op **v12.4**
+(herbasis vanaf v10.11.11, `docs/adr/ADR-0011-upgrade-12x-webclient.md`).
 
 Hier staan alleen de eigen B-, I-, A- en promptdocumenten plus de gedeelde architectuur (`00_START`, `01_ARCHITECTUUR`, `05_TESTS`). Het volledige pakket en de Excel staan in `lvos04/ai-server-manager` onder `docs/platform-v2/`.
 

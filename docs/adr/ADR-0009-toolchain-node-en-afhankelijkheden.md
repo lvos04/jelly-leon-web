@@ -1,6 +1,7 @@
 # ADR-0009 — Toolchain Node 22.23.4 in CI; afhankelijkheden niet zelf patchen in P0
 
-- **Status:** Aanvaard (P0, 2026-11-09)
+- **Status:** Node 22-deel **vervangen door ADR-0011** (P4-0: Node 24.22.2 / npm 11.19.1 voor v12.4); het deel
+  "afhankelijkheden niet zelf patchen" blijft gelden.
 - **Context:** Upstream v10.11.11: `.nvmrc` = 20, `engines` node ≥ 20 en npm ≥ 9.6.4 < 11, `engine-strict=true`;
   upstream-CI draait Node 20. Node 20 is sinds 30 april 2026 end-of-life. De web-stage van de jelly-leon-image gebruikt
   `node:22.23.4-bookworm-slim` (digest-gepind). `npm audit` meldt advisories in upstream-afhankelijkheden (runtime 23,

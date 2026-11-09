@@ -15,5 +15,6 @@ Status: `Voorgesteld` → `Aanvaard` → (`Vervangen door ADR-xxxx`).
 | [ADR-0006](ADR-0006-upstream-sync.md) | Upstream-sync via `sync/<tag>`, nooit automatisch naar productie (EX48) | Aanvaard |
 | [ADR-0007](ADR-0007-upstream-workflows-in-fork.md) | Upstream-workflows ongewijzigd; guards bewaakt door `workflow_check.py` | Aanvaard |
 | [ADR-0008](ADR-0008-geen-eigen-image.md) | Geen eigen image of Custom App: de webclient zit in `ghcr.io/lvos04/jelly-leon` | Aanvaard |
-| [ADR-0009](ADR-0009-toolchain-node-en-afhankelijkheden.md) | Toolchain Node 22.23.4 in CI; afhankelijkheden niet zelf patchen in P0 | Aanvaard |
+| [ADR-0009](ADR-0009-toolchain-node-en-afhankelijkheden.md) | Toolchain Node 22.23.4 in CI; afhankelijkheden niet zelf patchen in P0 | Node-deel vervangen door ADR-0011 |
 | [ADR-0010](ADR-0010-contract-1-2.md) | Platformcontract 1.2: byte-gelijke kopie met drifttest, strenge bewijsregels (§11), JW1–JW3 | Aanvaard |
+| [ADR-0011](ADR-0011-upgrade-12x-webclient.md) | Webclient naar jellyfin-web 12.x (P4-0): herbasis v12.4, Node 24, guard JLW-0001, zichtbare naam JLW-0002, layouts, haakpunten (UG-WEB) | Aanvaard |

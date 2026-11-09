@@ -1,9 +1,32 @@
-# Inventaris jelly-leon-web (P0, B03-001 webdeel)
+# Inventaris jelly-leon-web (P0, B03-001 webdeel; bijgewerkt in P4-0)
 
 Peildatum 2026-11-09 · branch `ccr-c133d7a0-kuz1cv` · basis `jellyfin/jellyfin-web` v10.11.11
 (`35c0793ece3adbd247eab290ae1effab851f3d37`, lokale tag `upstream-v10.11.11`). Alles hieronder is **gemeten in deze
 repository** (commando's in [`BOUWVERIFICATIE_P0.md`](BOUWVERIFICATIE_P0.md)), niet op een NAS. Over wat er op de NAS
 draait (huidige Jellyfin-versie, clients, D07/D15) zegt dit document niets.
+
+## 0. Stand P4-0 op v12.4 (2026-11-09, ADR-0011)
+
+Gemeten in deze repository na de herbasis (commando's en uitkomsten: [`BOUWVERIFICATIE_P4-0.md`](BOUWVERIFICATIE_P4-0.md)).
+De hoofdstukken 1–8 hieronder beschrijven de P0-stand op v10.11.11 en blijven als historie staan; waar 12.4 afwijkt,
+geldt deze tabel.
+
+| Onderdeel | Stand op v12.4 |
+|---|---|
+| Basis | `jellyfin/jellyfin-web` **v12.4** (`0a580ce8df89`), lokale tag `upstream-v12.4`, forkversie `12.4.0-jl.0`; `package.json` `jellyfin-web` 12.4.0 |
+| Core-patches | **2**: JLW-0001 (guard `workflow_run.yml`), JLW-0002 (zichtbare naam "Jelly Leon") |
+| Broncode | `src/`: 1173 bestanden, waarvan 605 `.ts/.tsx` en 246 `.js/.jsx` |
+| Apps | `src/apps/legacy` (was `stable`), `src/apps/modern` (was `experimental`; **standaard**, `apphost.getDefaultLayout()`), `src/apps/dashboard`, `src/apps/wizard`; Legacy via instelling `layout` = `desktop-legacy`/`mobile-legacy`/`tv` |
+| Node/npm | `.nvmrc` = 24, `engines` node ≥ 24.0.0 en npm ≥ 11.0.0, `engine-strict`; Node 22.23.4/npm 10.9.9 → `EBADENGINE` (gemeten). Toolchain: **Node 24.22.2 / npm 11.19.1**; Node-image `node:24.22.2-bookworm-slim@sha256:01d566e8…70e9` |
+| `.npmrc` (nieuw in 12.x) | `allow-remote=root`, `engine-strict=true`, `fund=false`, `ignore-scripts=true`, `min-release-age=7` (behalve `@jellyfin/*`), `save-exact=true` |
+| Bundler en werktuigen | webpack 5.109.0, babel 7.29.7, sass 1.102.0, TypeScript 5.9.3, eslint 9.39.5, stylelint 16.26.1, vitest 3.2.7, es-check 9.6.4 |
+| Afhankelijkheden | 1771 pakketten na `npm ci`; `classlist.js` nog steeds als GitHub-archief (werkt op de bouwmachine) |
+| Kwaliteit (lokaal, Node 24.22.2) | eslint 0 fouten / 98 waarschuwingen (upstream); stylelint 0; tsc 0; vitest **12 bestanden, 164/164**; productiebuild 2348 bestanden (~61 MB); es-check ES5 in orde |
+| i18n | 108 taalbestanden; `nl.json` dekt alle 1947 `en-us`-sleutels |
+| Upstream-workflows | als in §6, plus **`workflow_run.yml`** (workflow_run na "Pull Request"): geheimen JF_BOT_TOKEN en CLOUDFLARE_* — sinds JLW-0001 bewaakt; `workflow_check.py`: 10 upstream (bewaakt), 2 eigen (vastgezet) |
+| Serverimage voor tests | `docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0…b771` (ProductName "Jellyfin Server", versie 12.4.0); legacy-authenticatie uit (`X-Emby-Token`, `api_key=`, `X-Emby-Authorization` → 401) |
+| Haakpunten | 19 ankers in [`UPSTREAM_GEDRAG.md`](UPSTREAM_GEDRAG.md); tegen de 10.11.11-boom falen er 11 (verhuisde bestanden) |
+| `npm audit` (informatief, niet gepatcht; ADR-0009) | runtime 18 meldingen (1 kritiek `tar`, 12 hoog o.a. `dompurify` 2.5.9, `pdfjs-dist` 3.11.174, `markdown-it` 14.3.0, `axios`); totaal incl. dev 85 |
 
 ## 1. Repository en herkomst
 

@@ -1,14 +1,21 @@
 # Forkstrategie jelly-leon-web (B03-001, webdeel)
 
-Versie P0 · 2026-11-09 · repo `lvos04/jelly-leon-web` · basis `jellyfin/jellyfin-web` **v10.11.11**
-(`35c0793ece3adbd247eab290ae1effab851f3d37`) · licentie **GPL-2.0-or-later** (upstream `package.json`/`LICENSE`) ·
-hoort bij de serverfork `lvos04/jelly-leon` (zelfde basisversie, zelfde forkregels).
+Versie P4-0 · 2026-11-09 · repo `lvos04/jelly-leon-web` · basis `jellyfin/jellyfin-web` **v12.4**
+(`0a580ce8df89282dfd120b6d5efb8e106da23bd5`; tot P4-0: v10.11.11) · licentie **GPL-2.0-or-later** (upstream
+`package.json`/`LICENSE`) · hoort bij de serverfork `lvos04/jelly-leon` (zelfde upstream-tag, zelfde forkregels).
 
 Dit document is de samenvatting voor de webclient. De besluiten staan in [`docs/adr/`](../adr/README.md)
-(ADR-0001…0009), de bewaking in `tools/jelly-leon-web/` en in CI (`.github/workflows/jelly-leon-web-ci.yml`).
+(ADR-0001…0011), de bewaking in `tools/jelly-leon-web/` en in CI (`.github/workflows/jelly-leon-web-ci.yml`).
 Het serverdeel staat in `lvos04/jelly-leon` → `docs/platform-v2/FORK_STRATEGIE.md`.
 
 ## 0. In het kort
+
+> **Stand P4-0 (ADR-0011):** herbasis op v12.4 met de sync-tooling (0 conflicten); twee core-patches: **JLW-0001**
+> (guard op `workflow_run.yml`) en **JLW-0002** (zichtbare naam "Jelly Leon", de enige merkwijziging); toolchain Node
+> 24.22.2 / npm 11.19.1 en images op digest in `baseline.json` → `toolchain`; smoketest in de layouts Modern
+> (standaard) en Legacy; haakpunten van de geplande webhaken in [`UPSTREAM_GEDRAG.md`](UPSTREAM_GEDRAG.md)
+> (UG-WEB-1…19). Metingen: [`BOUWVERIFICATIE_P4-0.md`](BOUWVERIFICATIE_P4-0.md). De punten hieronder beschrijven P0
+> en gelden verder ongewijzigd, behalve waar "P4-0" staat.
 
 - **Stand P0: 0 core-patches.** De broncode is byte-gelijk aan upstream v10.11.11; alles wat van ons is staat in
   fork-eigen paden (`tools/jelly-leon-web/fork_paths.txt`). Gemeten: `npm ci`, eslint, stylelint, tsc, vitest
@@ -74,12 +81,18 @@ Regels voor stap 5 (gecontroleerd door `patch_register_check.py` en review):
 |---|---|---|
 | Afwijkingen van upstream | `patch_register_check.py`: elke afwijking buiten fork-eigen paden moet in `PATCHES.md` | CI-job *Forkregels* |
 | Technische identiteit | `check_fork_consistency.py`: `package.json`/`package-lock.json` = `jellyfin-web` 10.11.11; basis zit in de historie | CI-job *Forkregels* |
-| Zichtbare naam (P0) | web-client-smoketest: `<title>Jellyfin</title>` en `manifest.json` `name` = "Jellyfin" | CI-job *web-e2e* |
+| Zichtbare naam (P4-0) | `check_fork_consistency.py`: merkbestanden wijken alleen af in "Jellyfin" → "Jelly Leon" (JLW-0002); smoketest: fork "Jelly Leon", stock "Jellyfin", identiteit "Jellyfin Web" | CI-jobs *Forkregels* en *web-e2e* |
+| Toolchain (P4-0) | `check_fork_consistency.py`: Node/npm/images uit `baseline.json` → `toolchain` overal gelijk en voldoen aan `engines` | CI-job *Forkregels* + sync |
+| Haakpunten (P4-0) | `upstream_gedrag_check.py`: elk anker uit `UPSTREAM_GEDRAG.md` bestaat nog in de upstream-bestanden | CI-job *Forkregels* + sync |
 | Upstream-geheimen | `workflow_check.py`: elk upstream-geheim achter een repository-guard, ook via herbruikbare workflows | CI-job *Forkregels* + sync |
 | Eigen workflows | `workflow_check.py`: acties op commit-SHA, images op digest, exacte Node-versie, `permissions` | CI-job *Forkregels* |
 | Bewijs | `check_fork_consistency.py`: `EVIDENCE.json` volgens contract §11, nooit "Gereed"/"Geslaagd" | CI-job *Forkregels* |
 
 ## 4. Waar de B03-uitbreidingen in de webclient komen (ontwerp; niets hiervan is in P0 gebouwd)
+
+> **P4-0:** de paden hieronder zijn die van 10.11.11. Op v12.4 staan de haakpunten en werknamen (H-ITEMDETAILS,
+> H-ROUTE, H-PLAYBACKINFO, …) in [`PATCHES.md`](PATCHES.md) → "Geplande haken op de 12.x-basis", met ankercontrole in
+> [`UPSTREAM_GEDRAG.md`](UPSTREAM_GEDRAG.md). De nummers JLW-0001…0003 uit deze tabel zijn vervallen (ADR-0011 §7).
 
 | Uitbreiding (B03) | Server (lvos04/jelly-leon e.a.) | Webclient (deze repo) | Ladder | Bestaat upstream al? |
 |---|---|---|---|---|
@@ -102,8 +115,10 @@ De ID's JLW-0001…0003 zijn een planning; ze worden pas in het register opgenom
 - **Alleen de zichtbare naam mag later "Jelly Leon" worden** (paginatitel, `manifest.json` `name`/`short_name`, logo,
   teksten) — eerst via serverconfiguratie (`BrandingOptions`: login-disclaimer, eigen CSS), dan via `config.json`/eigen
   thema, pas daarna via een geregistreerde patch. "Gebaseerd op Jellyfin" en de GPL-credits blijven zichtbaar.
-- **In P0 is niets gewijzigd**; de smoketest controleert dat `<title>Jellyfin</title>` en `manifest.json` `name`
-  "Jellyfin" nog gelden, zodat een stille brandingwijziging opvalt.
+- **In P0 is niets gewijzigd.** **P4-0 (JLW-0002):** `<title>`, `application-name`, `manifest.json` `name`/`short_name`
+  en de standaardtitel in `libraryMenu.js` heten "Jelly Leon" — de enige merkwijziging; de smoketest verwacht dat
+  bewust (fork "Jelly Leon", stock "Jellyfin") en `check_fork_consistency.py` weigert elke andere afwijking in die
+  bestanden. In 12.x toont de titel/werkbalk na het laden de servernaam (`ServerName`, instelbaar per installatie).
 
 ## 6. Bekende upstream-gedragingen die de webclient niet kan oplossen
 
@@ -130,8 +145,10 @@ De ID's JLW-0001…0003 zijn een planning; ze worden pas in het register opgenom
   herbasis 0 conflicten, maar de sync faalt terecht op (1) `workflow_run.yml` in v12.4 dat upstream-geheimen zonder
   repository-guard doorgeeft en (2) de eis Node ≥ 24 / npm ≥ 11. Zie
   `test-evidence/p0-upstream-syncproef-v12.4.json`.
+- **P4-0 uitgevoerd (ADR-0011):** dezelfde herbasis is nu overgenomen; (1) opgelost met JLW-0001, (2) met de toolchain
+  Node 24.22.2 / npm 11.19.1. De volgende sync (12.4 → 12.y) is JLT-67.
 
-## 8. Bouwen, testen en CI (zie BOUWVERIFICATIE_P0.md)
+## 8. Bouwen, testen en CI (P0: BOUWVERIFICATIE_P0.md; P4-0 op v12.4: BOUWVERIFICATIE_P4-0.md)
 
 | Wat | Waar | Stand P0 (lokaal gemeten, 2026-11-09) |
 |---|---|---|
