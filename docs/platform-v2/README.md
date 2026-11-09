@@ -8,6 +8,28 @@ Hier staan alleen de eigen B-, I-, A- en promptdocumenten plus de gedeelde archi
 
 Onbekende NAS-gegevens (D01–D18) worden nooit met voorbeeldwaarden ingevuld; ze worden via de onboarding-wizard in de web-UI vastgelegd.
 
+## B03 2.0 — universele mediaserver (goedgekeurd door de gebruiker op 2026-11-09)
+
+- `02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md` (versie 2.0), `02_BOUWPLANNEN/B03_FASERING.md` en
+  `02_BOUWPLANNEN/B03_BESLUITEN.md` zijn byte-gelijke kopieën uit `lvos04/ai-server-manager` (bron-commit `0f390bf`),
+  net als `00_START/INHOUDSOPGAVE.md`. Nooit hier bewerken: een nieuwe stand overnemen = opnieuw byte-gelijk kopiëren.
+- **HARDE EIS van de gebruiker:** alle kijkgeschiedenis (gezien-status, hervatpunten, favorieten, beoordelingen, onthouden
+  spoorkeuzes, gebruikers, rechten) en de MediaGuard-voortgang blijven altijd beschikbaar (bouwplan §10.9 en B03-015). Geen
+  cutover zonder vóór/na-rapport per gebruiker en uitdrukkelijk akkoord van de gebruiker op elk verschil; de bestaande
+  installatie blijft ongewijzigd als terugval.
+- **Huidige mediaserver: Emby.** De overname vanuit Emby (B03-015, JLT-70…74) heeft prioriteit P0 en begint al in golf 0;
+  de overnametool hoort bij jelly-leon. Emby blijft ongewijzigd draaien tot de gebruiker na de controlelijst "Emby
+  verwijderen" (bouwplan §10.9.2) zelf besluit.
+- Deze repo voert de webdelen uit (webhaken, webplugins, `config.json`-generator); welke rijen dat zijn, staat in
+  `waarvan_uitvoerend` van `EXCEL_TAKEN_PER_REPO.json` in ai-server-manager (`docs/platform-v2/08_EXCEL/b03/`).
+- ADR-nummers in die kopieën: een kaal ADR-0001…0011 is een ADR van **jelly-leon** (de server-fork; bijlage C van het
+  bouwplan), behalve waar "web" of "jelly-leon-web" erbij staat (bv. "web ADR-0001" = de uitbreidingsladder van deze
+  repo); "ADR-0016…0020 in `docs/adr/`" zijn van ai-server-manager. De voorstellen ADR-B03-01…13 staan in jelly-leon als
+  ADR-0015…0024 (overzicht in `lvos04/jelly-leon` `docs/adr/README.md`).
+- `EXCEL_TAKEN.json` bevat de volledige B03-set: B03-001…079 (de uitgebreide rijen B03-004/005/007/009/010/013 vervangen
+  de oude rijen; de oude tekst staat er letterlijk vooraan in) en de testrijen JLT-01…74 (conventie van ai-server-manager:
+  Fase `P6 - E2E`, Soort `Testen`, startstatus en bewijsrijen in `Afhankelijkheid`). Nooit `Gereed` of `Geslaagd`.
+
 ## Platformcontract 1.2
 
 - [`PLATFORM_CONTRACTEN.md`](PLATFORM_CONTRACTEN.md) (`contracts 1.2`) en
@@ -37,7 +59,9 @@ Onbekende NAS-gegevens (D01–D18) worden nooit met voorbeeldwaarden ingevuld; z
 - `01_ARCHITECTUUR/06_FASERING_EN_GATES.md`
 - `01_ARCHITECTUUR/07_API_EN_EVENTSCHEMA.md`
 - `01_ARCHITECTUUR/08_UI_EN_INTERACTIES.md`
-- `02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md`
+- `02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md` (versie 2.0, kopie)
+- `02_BOUWPLANNEN/B03_FASERING.md` (kopie)
+- `02_BOUWPLANNEN/B03_BESLUITEN.md` (kopie)
 - `03_INSTALLATIE/I06_JELLYFIN.md`
 - `03_INSTALLATIE/I24_UNIVERSELE_MEDIASERVER.md`
 - `04_BESTAANDE_APPS/A17_JELLYFIN.md`
