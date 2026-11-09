@@ -441,15 +441,6 @@
     }
 }
 
-.backdropContainer {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: -1;
-}
-
 .libraryPage .header {
     padding-bottom: 0;
 }
@@ -598,39 +589,6 @@
 
     .layout-tv & {
         display: none;
-    }
-}
-
-.detailPageContent {
-    display: flex;
-    flex-direction: column;
-
-    .layout-desktop &,
-    .layout-tv & {
-        .emby-scroller {
-            [dir="ltr"] & {
-                margin-left: 0;
-            }
-
-            [dir="rtl"] & {
-                margin-right: 0;
-            }
-        }
-    }
-
-    [dir="ltr"] & {
-        padding-left: 32.45vw;
-        padding-right: 2%;
-    }
-
-    [dir="rtl"] & {
-        padding-right: 32.45vw;
-        padding-left: 2%;
-    }
-
-    .layout-mobile & {
-        padding-left: 5%;
-        padding-right: 5%;
     }
 }
 
@@ -934,12 +892,10 @@
 
     [dir="ltr"] & {
         padding-left: 32.45vw;
-        padding-right: 2%;
     }
 
     [dir="rtl"] & {
         padding-right: 32.45vw;
-        padding-left: 2%;
     }
 
     .layout-mobile & {
@@ -1017,16 +973,6 @@ div.itemDetailGalleryLink.defaultCardBackground {
     .lnkSibling {
         display: none !important;
     }
-}
-
-.emby-button.detailFloatingButton {
-    font-size: 1.4em;
-    margin-right: 0.5em !important;
-    color: rgba(255, 255, 255, 0.76);
-}
-
-.emby-button.detailFloatingButton .material-icons {
-    font-size: 3.5em;
 }
 
 @media all and (max-width: 62.5em) {

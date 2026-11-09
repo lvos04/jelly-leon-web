@@ -6,9 +6,9 @@ import itemHelper from '../itemHelper';
 import loading from '../loading/loading';
 import alert from '../alert';
 
+import layoutManager from 'components/layoutManager';
 import { getItemQuery } from 'hooks/useItem';
 import { ServerConnections } from 'lib/jellyfin-apiclient';
-import { toApi } from 'utils/jellyfin-apiclient/compat';
 import { queryClient } from 'utils/query/queryClient';
 import { history } from 'RootAppRouter';
 
@@ -135,8 +135,8 @@ class AppRouter {
     showItem(item, serverId, options) {
         // TODO: Refactor this so it only gets items, not strings.
         if (typeof item === 'string') {
+            const api = ServerConnections.getApi(serverId);
             const apiClient = serverId ? ServerConnections.getApiClient(serverId) : ServerConnections.currentApiClient();
-            const api = toApi(apiClient);
             const userId = apiClient.getCurrentUserId();
 
             queryClient
@@ -297,6 +297,10 @@ class AppRouter {
                 urlForList += '&IsNews=true';
             }
 
+            if (options.parentId) {
+                urlForList += '&parentId=' + options.parentId;
+            }
+
             return urlForList;
         }
 
@@ -400,6 +404,17 @@ class AppRouter {
         }
 
         if (context !== 'folders' && !itemHelper.isLocalItem(item)) {
+            const isModernLayout = layoutManager.modern;
+
+            if (isModernLayout && item.CollectionType == CollectionType.Books) {
+                url = `#/books?topParentId=${item.Id}&collectionType=${item.CollectionType}`;
+
+                if (options?.section === 'latest') {
+                    url += '&tab=3';
+                }
+                return url;
+            }
+
             if (item.CollectionType == CollectionType.Movies) {
                 url = `#/movies?topParentId=${item.Id}&collectionType=${item.CollectionType}`;
 
@@ -430,10 +445,33 @@ class AppRouter {
                 return url;
             }
 
-            const layoutMode = localStorage.getItem('layout');
+            if (isModernLayout && item.CollectionType == CollectionType.Homevideos) {
+                return '#/homevideos?topParentId=' + item.Id;
+            }
 
-            if (layoutMode === 'experimental' && item.CollectionType == CollectionType.Homevideos) {
-                url = '#/homevideos?topParentId=' + item.Id;
+            if (isModernLayout && item.CollectionType == CollectionType.Musicvideos) {
+                url = `#/musicvideos?topParentId=${item.Id}&collectionType=${item.CollectionType}`;
+
+                if (options?.section === 'latest') {
+                    url += '&tab=1';
+                }
+                return url;
+            }
+
+            if (isModernLayout && item.CollectionType == CollectionType.Boxsets) {
+                return `#/boxsets?topParentId=${item.Id}&collectionType=${item.CollectionType}`;
+            }
+
+            if (isModernLayout && item.CollectionType == CollectionType.Playlists) {
+                return `#/playlists?topParentId=${item.Id}&collectionType=${item.CollectionType}`;
+            }
+
+            if (isModernLayout && item.CollectionType == null && item.Type === 'CollectionFolder') {
+                url = `#/mixed?topParentId=${item.Id}&collectionType=mixed`;
+
+                if (options?.section === 'latest') {
+                    url += '&tab=1';
+                }
 
                 return url;
             }
