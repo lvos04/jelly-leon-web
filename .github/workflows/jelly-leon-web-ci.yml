@@ -21,6 +21,11 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    # Expliciet bash → GitHub draait `bash --noprofile --norc -eo pipefail {0}` (zonder dit geen pipefail).
+    shell: bash
+
 concurrency:
   group: jelly-leon-web-ci-${{ github.ref }}
   cancel-in-progress: true
@@ -61,8 +66,10 @@ jobs:
       - name: Tests van de forktools (incl. EX48-simulatie)
         run: python -m pytest -q -c tools/jelly-leon-web/pytest.ini tools/jelly-leon-web/tests
 
-      - name: Eigen workflows controleren (actionlint)
-        run: actionlint -shellcheck= .github/workflows/jelly-leon-web-ci.yml .github/workflows/upstream-sync.yml
+      - name: Eigen workflows controleren (actionlint + shellcheck, beide vastgezet via requirements-dev.txt)
+        run: |
+          shellcheck --version | head -n 2
+          actionlint .github/workflows/jelly-leon-web-ci.yml .github/workflows/upstream-sync.yml
 
   kwaliteit:
     name: Upstream-kwaliteit (${{ matrix.command }})
@@ -128,7 +135,7 @@ jobs:
           COMMIT: ${{ github.sha }}
           REF_NAME: ${{ github.ref_name }}
         run: |
-          set -eu
+          set -euo pipefail
           test -f dist/index.html
           fork_version=$(python3 -c "import json;print(json.load(open('tools/jelly-leon-web/baseline.json'))['fork_version'])")
           upstream_tag=$(python3 -c "import json;print(json.load(open('tools/jelly-leon-web/baseline.json'))['upstream_tag'])")
@@ -187,7 +194,7 @@ jobs:
         env:
           ARTEFACT: ${{ needs.build.outputs.artefact }}
         run: |
-          set -eu
+          set -euo pipefail
           cd "$RUNNER_TEMP/artefact"
           sha256sum -c "$ARTEFACT.tar.gz.sha256"
           mkdir -p "$GITHUB_WORKSPACE/dist"
@@ -207,7 +214,7 @@ jobs:
       - name: Serverimage ophalen (digest-gepind)
         run: docker pull "$JLW_SERVER_IMAGE"
 
-      - name: Smoketest met de fork-build
+      - name: Smoketest met de fork-build (incl. herstart, terugzetten naar stock-web en weer vooruit)
         run: >
           python tools/jelly-leon-web/e2e/web_smoke.py --modus fork --dist dist --image "$JLW_SERVER_IMAGE"
           --uitvoer "$RUNNER_TEMP/e2e"

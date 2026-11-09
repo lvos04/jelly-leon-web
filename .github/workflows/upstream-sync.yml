@@ -10,6 +10,11 @@
 #   * Pushen van sync/<tag> gebeurt alleen als het geheim JLW_SYNC_PUSH_TOKEN bestaat (contents:write + workflows,
 #     omdat upstream-merges .github/workflows wijzigen en GITHUB_TOKEN dat niet mag pushen). Zonder dat geheim komt
 #     het resultaat als git-bundle in de artefacten.
+#   * Het pushtoken komt NOOIT in een job die upstream-code of npm-afhankelijkheden uitvoert: de job `beoordeling`
+#     draait op een schone runner, haalt alleen de bundle van een volledig geslaagde sync op en pusht die (geen hooks,
+#     token via git-config-omgeving, niet in de URL). Een bestaande sync/<tag> wordt nooit overschreven (geen force).
+#   * Alle run-stappen draaien met bash -eo pipefail: een fout in een pijplijn (bv. tagdetectie | tee) laat de stap
+#     falen in plaats van stil "geen kandidaat" te melden.
 #   * Scheduled workflows draaien alleen vanaf de standaardbranch van de repository.
 #   * Server (lvos04/jelly-leon) en web horen naar dezelfde upstream-tag te gaan; dit staat in ADR-0006.
 name: Upstream-sync webclient
@@ -43,6 +48,11 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    # Expliciet bash → GitHub draait `bash --noprofile --norc -eo pipefail {0}` (zonder dit geen pipefail).
+    shell: bash
+
 concurrency:
   group: upstream-sync-web
   cancel-in-progress: false
@@ -74,7 +84,7 @@ jobs:
           INPUT_TAG: ${{ inputs.tag }}
           INPUT_SPOOR: ${{ inputs.spoor }}
         run: |
-          set -eu
+          set -euo pipefail
           if [ -n "${INPUT_TAG:-}" ]; then
             python3 - "$INPUT_TAG" <<'PY'
           import json, os, sys
@@ -129,7 +139,7 @@ jobs:
           SYNC_TAG: ${{ matrix.tag }}
           SYNC_METHODE: ${{ inputs.methode || 'auto' }}
         run: |
-          set -eu
+          set -euo pipefail
           git config user.name "jelly-leon-sync"
           git config user.email "jelly-leon-sync@users.noreply.github.com"
           python3 tools/jelly-leon-web/upstream_sync.py merge --tag "$SYNC_TAG" --bron "$UPSTREAM_URL" \
@@ -151,7 +161,7 @@ jobs:
 
       - name: Upstream-kwaliteit en productiebuild
         run: |
-          set -eu
+          set -euo pipefail
           npm ci --no-audit --no-fund
           npm run lint
           npm run stylelint
@@ -164,7 +174,7 @@ jobs:
         env:
           SYNC_TAG: ${{ matrix.tag }}
         run: |
-          set -eu
+          set -euo pipefail
           python3 -m playwright install --with-deps chromium
           # Zelfde versie als de web-tag (v12.4 → 12.4); op digest vastgezet vóór gebruik en in het rapport vermeld.
           ref="$SERVER_IMAGE_REPO:${SYNC_TAG#v}"
@@ -178,34 +188,98 @@ jobs:
         if: always()
         env:
           SYNC_TAG: ${{ matrix.tag }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
+          set -euo pipefail
+          # Basis = de uitgecheckte forkcommit (GITHUB_SHA); github.event.repository ontbreekt bij schedule-events.
+          mkdir -p "$RUNNER_TEMP/sync"
           if git rev-parse --verify --quiet "refs/heads/sync/$SYNC_TAG" >/dev/null; then
-            git bundle create "$RUNNER_TEMP/sync.bundle" "origin/$DEFAULT_BRANCH..sync/$SYNC_TAG"
+            refs=("sync/$SYNC_TAG")
+            if git rev-parse --verify --quiet "refs/tags/upstream-$SYNC_TAG" >/dev/null; then
+              refs+=("upstream-$SYNC_TAG")
+            fi
+            git bundle create "$RUNNER_TEMP/sync/sync.bundle" "${refs[@]}" "^$GITHUB_SHA"
+            git bundle verify "$RUNNER_TEMP/sync/sync.bundle"
           fi
 
-      - name: Bundle en rapport uploaden
+      - name: Bundle en rapport uploaden (ook bij falen, ter analyse)
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: upstream-sync-web-${{ strategy.job-index }}
+          name: upstream-sync-web-${{ matrix.tag }}
           retention-days: 30
           if-no-files-found: ignore
           path: |
-            ${{ runner.temp }}/sync.bundle
+            ${{ runner.temp }}/sync/sync.bundle
             ${{ runner.temp }}/e2e/
 
-      - name: sync/<tag> pushen ter beoordeling (alleen met JLW_SYNC_PUSH_TOKEN; nooit naar productie)
+      - name: Geslaagde sync markeren (alleen als ALLE stappen hierboven groen waren)
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: upstream-sync-web-geslaagd-${{ matrix.tag }}
+          retention-days: 30
+          if-no-files-found: error
+          path: ${{ runner.temp }}/sync/sync.bundle
+
+  beoordeling:
+    name: sync/${{ matrix.tag }} pushen ter beoordeling (alleen met JLW_SYNC_PUSH_TOKEN; nooit naar productie)
+    needs: [detecteer, sync]
+    # Per tag: ook als een andere tag faalde. Zonder geslaagd-artefact wordt er niets gepusht.
+    if: ${{ always() && needs.detecteer.outputs.heeft_kandidaat == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: ${{ fromJSON(needs.detecteer.outputs.kandidaten) }}
+    steps:
+      # Schone runner: hier draait geen upstream-code en geen npm. De checkout is alleen de basis voor de bundle.
+      - name: Checkout (basis voor de bundle; er wordt niets uit de repo uitgevoerd)
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Geslaagde sync ophalen (bestaat alleen als alle controles van deze tag groen waren)
+        id: ophalen
+        continue-on-error: true
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: upstream-sync-web-geslaagd-${{ matrix.tag }}
+          path: ${{ runner.temp }}/geslaagd
+
+      - name: Geen geslaagde sync → niets pushen
+        if: steps.ophalen.outcome != 'success'
+        env:
+          SYNC_TAG: ${{ matrix.tag }}
+        run: echo "sync/$SYNC_TAG is niet volledig geslaagd; er wordt niets gepusht (zie job Sync)." | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: sync/<tag> pushen ter beoordeling
+        if: steps.ophalen.outcome == 'success'
         env:
           PUSH_TOKEN: ${{ secrets.JLW_SYNC_PUSH_TOKEN }}
           SYNC_TAG: ${{ matrix.tag }}
           REPO: ${{ github.repository }}
         run: |
-          set -eu
+          set -euo pipefail
           if [ -z "${PUSH_TOKEN:-}" ]; then
             echo "Geen JLW_SYNC_PUSH_TOKEN: sync/$SYNC_TAG staat alleen als git-bundle in de artefacten." | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          git push "https://x-access-token:${PUSH_TOKEN}@github.com/${REPO}.git" \
+          bundle="$RUNNER_TEMP/geslaagd/sync.bundle"
+          git bundle verify "$bundle"
+          git -c core.hooksPath=/dev/null fetch --no-tags "$bundle" \
+            "refs/heads/sync/$SYNC_TAG:refs/heads/sync/$SYNC_TAG" "refs/tags/upstream-$SYNC_TAG:refs/tags/upstream-$SYNC_TAG"
+          # Token alleen via de git-config-omgeving (niet in de URL, niet in argv) en gemaskeerd in de logs.
+          auth=$(printf 'x-access-token:%s' "$PUSH_TOKEN" | base64 -w0)
+          echo "::add-mask::$auth"
+          export GIT_CONFIG_COUNT=2
+          export GIT_CONFIG_KEY_0="http.https://github.com/.extraheader" GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $auth"
+          export GIT_CONFIG_KEY_1="core.hooksPath" GIT_CONFIG_VALUE_1="/dev/null"
+          remote="https://github.com/${REPO}.git"
+          if [ -n "$(git ls-remote --heads "$remote" "refs/heads/sync/$SYNC_TAG")" ]; then
+            echo "sync/$SYNC_TAG bestaat al ter beoordeling; niet overschreven (geen force-push)." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git push "$remote" \
             "refs/heads/sync/$SYNC_TAG:refs/heads/sync/$SYNC_TAG" "refs/tags/upstream-$SYNC_TAG:refs/tags/upstream-$SYNC_TAG"
           echo "sync/$SYNC_TAG gepusht ter beoordeling. Niet gedeployd; overnemen en release blijven handmatige stappen." | tee -a "$GITHUB_STEP_SUMMARY"

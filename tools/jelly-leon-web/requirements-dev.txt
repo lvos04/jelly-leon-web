@@ -3,4 +3,6 @@
 pytest==8.4.2
 pyyaml==6.0.3
 actionlint-py==1.7.12.25
+# shellcheck voor actionlint (zelfde versie lokaal en in CI; ubuntu-24.04 heeft anders 0.9.0)
+shellcheck-py==0.11.0.1
 playwright==1.63.0
