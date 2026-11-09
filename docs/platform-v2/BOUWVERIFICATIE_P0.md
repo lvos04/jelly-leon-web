@@ -252,4 +252,7 @@ serverimage op deze machine; geen echte tv/telefoon (D15) en geen NAS.
   npm 10.9.9; smoketest 30/30). GitHub meldde daarin dat `upload-artifact`/`download-artifact` v5.0.0 nog op het
   afgeschafte Node 20 draaien → beide eigen workflows naar v7.0.2 / v8.0.2 (commit-SHA gecontroleerd met
   `git ls-remote`).
+- Run [42653944868](https://github.com/lvos04/jelly-leon-web/actions/runs/42653944868) op `0e23e7e73` (met de
+  nieuwe artefact-acties) **geslaagd**: 7/7 jobs, drifttest online in orde, tool-tests 67 + 1 overgeslagen, artefact
+  via upload v7.0.2 → download v8.0.2 doorgegeven, smoketest 30/30; geen Node 20-waarschuwing meer.
 - Blijft open: echte apparaten (D15), echte NAS, een echte run van `upstream-sync.yml` op GitHub.
