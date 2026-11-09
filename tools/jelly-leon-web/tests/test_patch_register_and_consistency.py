@@ -268,3 +268,79 @@ def test_evidence_bijgewerkt_is_een_echte_datum(repos, datum):
 
 def test_package_json_helper_roundtrip():
     assert json.loads(package_json("9.9.9"))["version"] == "9.9.9"
+
+
+# --------------------------------------------------------------------------------- zichtbare naam (JLW-0002)
+
+BRAND_HTML = '<html>\n<meta name="application-name" content="Jellyfin">\n<title>Jellyfin</title>\n</html>\n'
+BRAND_CONFIG = {"naam": "Jelly Leon", "upstream_naam": "Jellyfin", "patch": "JLW-0002", "bestanden": ["src/index.html"]}
+
+
+def brand_fork(tmp_path: Path, fork_html: str, config: object = BRAND_CONFIG) -> tuple[Path, dict]:
+    """Mini-upstream met src/index.html en een fork met de gegeven versie en baseline-configuratie."""
+    from conftest import init_repo
+
+    repo = init_repo(tmp_path / "merk")
+    write(repo, "src/index.html", BRAND_HTML)
+    base = commit_all(repo, "upstream")
+    write(repo, "src/index.html", fork_html)  # de controle leest de werkboom, net als package.json
+    baseline = {"upstream_commit": base}
+    if config is not None:
+        baseline["zichtbare_naam"] = config
+    return repo, baseline
+
+
+def test_zichtbare_naam_pure_vervanging_is_in_orde(tmp_path):
+    repo, baseline = brand_fork(tmp_path, BRAND_HTML.replace("Jellyfin", "Jelly Leon"))
+    assert check_fork_consistency.check_visible_name(repo, baseline) == []
+
+
+@pytest.mark.parametrize(
+    "fork_html, melding",
+    [
+        (BRAND_HTML, "ontbreekt (JLW-0002 niet toegepast)"),                                 # patch kwijt
+        (BRAND_HTML.replace("<title>Jellyfin", "<title>Jelly Leon Server"), "geen pure naamwijziging"),
+        (BRAND_HTML.replace("</html>", "<script src=x></script>\n</html>"), "niets toevoegen of weghalen"),
+        (BRAND_HTML.replace("Jellyfin", "Jelly Leon").replace("ltr", "rtl").replace(
+            "<html>", '<html lang="nl">'), "geen pure naamwijziging"),                        # meegesmokkelde wijziging
+    ],
+)
+def test_zichtbare_naam_alleen_de_naam_en_niets_anders(tmp_path, fork_html, melding):
+    repo, baseline = brand_fork(tmp_path, fork_html)
+    errors = check_fork_consistency.check_visible_name(repo, baseline)
+    assert errors and any(melding in e for e in errors), errors
+
+
+def test_zichtbare_naam_onvolledige_configuratie_faalt(tmp_path):
+    repo, baseline = brand_fork(tmp_path, BRAND_HTML, config={"naam": "Jelly Leon", "bestanden": []})
+    assert any("vraagt naam, upstream_naam" in e for e in check_fork_consistency.check_visible_name(repo, baseline))
+    repo, baseline = brand_fork(tmp_path / "b", BRAND_HTML, config=None)
+    assert check_fork_consistency.check_visible_name(repo, baseline) == []
+
+
+def test_zichtbare_naam_van_deze_repo_is_vastgelegd_en_in_orde():
+    """De echte fork legt de merkwijziging vast in baseline.json en wijkt alleen in de naam af (JLW-0002)."""
+    baseline = json.loads((REPO_ROOT / "tools/jelly-leon-web/baseline.json").read_text(encoding="utf-8"))
+    config = baseline["zichtbare_naam"]
+    assert config["naam"] == "Jelly Leon" and config["upstream_naam"] == "Jellyfin" and config["patch"] == "JLW-0002"
+    assert set(config["bestanden"]) == {"src/index.html", "src/manifest.json", "src/scripts/libraryMenu.js"}
+    assert check_fork_consistency.check_visible_name(REPO_ROOT, baseline) == []
+    package = json.loads((REPO_ROOT / "package.json").read_text(encoding="utf-8"))
+    assert (package["name"], package["version"]) == ("jellyfin-web", baseline["upstream_version"])
+    apphost = (REPO_ROOT / "src/components/apphost.js").read_text(encoding="utf-8")
+    assert "const appName = 'Jellyfin Web';" in apphost  # clientnaam richting server blijft "Jellyfin Web"
+
+
+def test_evidence_jlt_testrijen_volgen_testmatrixregels(repos):
+    fork: Path = repos["fork"]
+    entry = {"id": "JLT-60", "status": "Bezig", "validatie": "Sim-geslaagd; NIET GEVALIDEERD (echte NAS)",
+             "bewijs": "tests", "blokkade": "", "opmerking": "", "repo": "jelly-leon-web", "bijgewerkt": "2026-11-09"}
+    write(fork, "docs/platform-v2/EVIDENCE.json", json.dumps([entry]) + "\n")
+    assert check_fork_consistency.check_evidence(fork) == []
+    for bad in ({"status": "Geslaagd"}, {"id": "JLT-6"}, {"status": "Gereed"}):
+        write(fork, "docs/platform-v2/EVIDENCE.json", json.dumps([dict(entry, **bad)]) + "\n")
+        assert check_fork_consistency.check_evidence(fork), bad
+    # Sim-geslaagd mag alleen bij testrijen, niet bij een werkpakket.
+    write(fork, "docs/platform-v2/EVIDENCE.json", json.dumps([dict(entry, id="B03-014")]) + "\n")
+    assert any("Sim-geslaagd" in e for e in check_fork_consistency.check_evidence(fork))
+

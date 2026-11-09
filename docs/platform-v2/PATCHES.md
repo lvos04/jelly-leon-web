@@ -24,14 +24,15 @@ geïsoleerde haak in een upstream-bestand (liefst één regel die fork-eigen cod
 **Nummering** (bouwplan B03 §10.11): een JLW-nummer wordt pas toegekend als de patch echt bestaat, in volgorde. De
 P0-planning noemde drie *geplande* haken "JLW-0001…0003"; die nummers zijn nooit aan een echte patch gegeven en zijn
 vervallen. De haken heten nu met hun werknaam uit het bouwplan (H-ITEMDETAILS, H-ROUTE, H-PLAYBACKINFO, …) en krijgen
-een nummer bij de echte patch. Daardoor is **JLW-0001** (guard) de eerste
-echte patch; "opvolger van JLW-0001" in het bouwplan betekent dus H-ITEMDETAILS (zie ADR-0011 in deze repo).
+een nummer bij de echte patch. Daardoor zijn **JLW-0001** (guard) en **JLW-0002** (zichtbare naam) de eerste twee
+echte patches; "opvolger van JLW-0001" in het bouwplan betekent dus H-ITEMDETAILS (zie ADR-0011 in deze repo).
 
 ## Overzicht
 
 | ID | Titel | Soort | Status |
 |---|---|---|---|
 | JLW-0001 | Repository-guard op upstream-workflow `workflow_run.yml` | workflow-guard (veiligheid) | actief |
+| JLW-0002 | Zichtbare naam "Jelly Leon" (titel, PWA-manifest, standaardpaginatitel) | merk (alleen zichtbare naam) | actief |
 
 ## JLW-0001 — Repository-guard op upstream-workflow `workflow_run.yml`
 
@@ -47,6 +48,22 @@ echte patch; "opvolger van JLW-0001" in het bouwplan betekent dus H-ITEMDETAILS 
 | Upstream-PR-kans | Redelijk: upstream bewaakt de deploy-jobs in `push.yml` en `pull_request.yml` al met dezelfde guard; in `workflow_run.yml` ontbreekt hij. Nog niet aangeboden (R2: alleen na besluit van de gebruiker). |
 | Test | `tools/jelly-leon-web/workflow_check.py` (CI-job *forkregels* én de sync-job van `upstream-sync.yml`): zonder deze patch faalt de controle met 10 onbewaakte geheimgebruiken (gemeten na de herbasis, 2026-11-09). `tests/test_workflow_check.py::test_upstream_workflow_run_v124_without_guard_fails_and_jlw_0001_fixes_it`; de guard moet een conjunct op het hoogste niveau zijn (`::test_guard_must_be_top_level_conjunct`). |
 | Bekend bij volgende sync | Wijzigt upstream de `if:`-regels of jobnamen, dan geeft de herbasis een conflict (exit 2) of faalt `workflow_check.py`; guard dan op de nieuwe regels zetten. Vervalt als upstream de guard zelf toevoegt (de checker meldt dan "wijkt niet meer af"). |
+
+## JLW-0002 — Zichtbare naam "Jelly Leon" (titel, PWA-manifest, standaardpaginatitel)
+
+| Veld | Waarde |
+|---|---|
+| Status | actief |
+| Sinds | 2026-11-09 (P4-0; BG-02: de eerste Jelly Leon-release is op 12.x) |
+| B03-taak | B03-001 (branding, ADR-0003), B03-014 (webdeel), contract 1.2 JW2 |
+| Doel | De webclient heet zichtbaar "Jelly Leon": browsertitel, `<meta name="application-name">`, de naam en korte naam van de PWA (`manifest.json`) en de standaardtitel die `libraryMenu.js` zet zolang de servernaam nog niet bekend is. Dit is de **enige** merkwijziging. |
+| Bestanden | `src/index.html`, `src/manifest.json`, `src/scripts/libraryMenu.js` |
+| Wijziging | 5 regels, elk exact `Jellyfin` → `Jelly Leon`: `index.html` (application-name, `<title>`), `manifest.json` (`name`, `short_name`), `libraryMenu.js` (`let documentTitle = 'Jelly Leon';`). Niets toegevoegd of weggehaald. |
+| Technische identiteit | Niet geraakt: `package.json` (`jellyfin-web` 12.4.0), clientnaam `appName` "Jellyfin Web" en `__PACKAGE_JSON_VERSION__` richting de server, `MediaBrowser`-autorisatieheader, localStorage-sleutels (`jellyfin_credentials`), routes, `config.json`-structuur, upstream-stringbestanden (teksten als "Jellyfin Server" blijven), het Jellyfin-logo en de favicons. Gecontroleerd door de smoketest (`/Sessions`: Client "Jellyfin Web" 12.4.0). |
+| Waarom geen plugin/configuratie | Stap 1 (server): `BrandingOptions` kent alleen login-disclaimer, eigen CSS en splashscreen; de servernaam (`ServerName`) verschijnt in 12.x wel in de werkbalk en titel, maar is per installatie instelbaar en geen productnaam. Stap 3 (`config.json`): `webSettings.js` kent alleen `includeCorsCredentials`, `multiserver`, `themes`, `menuLinks`, `servers`, `plugins` — geen naam. `index.html` en `manifest.json` zijn statische upstream-bestanden die webpack ongewijzigd uitlevert. Een eigen naamconfiguratie toevoegen zou een grotere patch zijn dan deze vijf regels. |
+| Upstream-PR-kans | Nihil (eigen merk). |
+| Test | `check_fork_consistency.py` (CI *forkregels* en sync): in de bestanden uit `baseline.json` → `zichtbare_naam` is elke afwijkende regel exact de upstream-regel met "Jellyfin" → "Jelly Leon", regelaantal gelijk, en de naam is echt toegepast (`tests/test_patch_register_and_consistency.py::test_zichtbare_naam_*`). Web-client-smoketest: fork-build serveert titel, application-name en manifest "Jelly Leon"; de stock-webclient "Jellyfin"; na terugzetten naar stock weer "Jellyfin" en daarna vooruit weer "Jelly Leon" (`test-evidence/p40-web-smoke/`). |
+| Bekend bij volgende sync | Verandert upstream een van deze regels, dan geeft de 3-weg-toepassing van de herbasis een conflict (exit 2) of meldt `check_fork_consistency.py` een afwijking die geen pure naamwijziging is; dan de regel opnieuw beoordelen. Logo/woordmerk (afbeelding in `@jellyfin/ux-web`) blijft Jellyfin tot de gebruiker een eigen logo kiest (followup). |
 
 ## Geplande haken op de 12.x-basis (nog NIET uitgevoerd — alleen planning)
 

@@ -7,6 +7,9 @@ Controles:
     (stock clients, plugins en de server zien de webclient als Jellyfin Web; alleen de zichtbare naam mag later
     "Jelly Leon" worden);
   * lokale tag upstream-<tag> (als die bestaat) wijst naar dezelfde upstream-commit;
+  * zichtbare naam (JLW-0002, ADR-0003/ADR-0011): in de merkbestanden is de enige afwijking van upstream dat
+    "Jellyfin" "Jelly Leon" werd, regel voor regel; elders mag die vervanging niet stilletjes gebeuren
+    (de merkwijziging blijft de enige, de technische identiteit blijft "Jellyfin");
   * docs/platform-v2/EVIDENCE.json volgt contract §11 (1.2, conformiteitspunt A4): precies de velden uit §11,
     geldige statussen, nooit "Gereed"/"Geslaagd" in deze bouwomgeving, `validatie` alleen waarden uit de vaste lijst
     (meerdere gescheiden door "; ", toelichting hoort in `opmerking`), repo = jelly-leon-web, en elke commit die in
@@ -68,7 +71,13 @@ COMMIT_REF_RE = re.compile(r"(?<![0-9A-Za-z:@/\-])([0-9a-f]{7,40})(?![0-9A-Za-z]
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # "NIET GEVALIDEERD (…)" in vrije tekst (blokkade): moet ook als lijstwaarde in `validatie` staan.
 NIET_GEVALIDEERD_RE = re.compile(r"NIET GEVALIDEERD \([^)]*\)")
-ID_RE = re.compile(r"^(B\d{2}-\d{3}|I\d{2}-\d{2}-\d{2}|A\d{2}(-\d+)?|APP-\d{2}|EX\d{2}|D\d{2})$")
+ID_RE = re.compile(r"^(B\d{2}-\d{3}|I\d{2}-\d{2}-\d{2}|A\d{2}(-\d+)?|APP-\d{2}|EX\d{2}|JLT-\d{2}|D\d{2})$")
+# Testrijen: EX01–EX50 (testmatrix) en sinds B03 2.0 JLT-01…74 (update_excel.py routeert JLT-… naar de Testmatrix).
+TEST_ID_RE = re.compile(r"^(EX\d{2}|JLT-\d{2})$")
+
+# Zichtbare naam (JLW-0002): staat in baseline.json onder "zichtbare_naam" (naam, upstream_naam, bestanden), zodat
+# een upstream-sync de instelling meeneemt. Alleen die bestanden, alleen die vervanging (ADR-0003, ADR-0011).
+VISIBLE_NAME_KEY = "zichtbare_naam"
 
 
 def check_baseline(repo: Path, baseline: dict) -> list[str]:
@@ -124,6 +133,43 @@ def check_identity(repo: Path, baseline: dict) -> list[str]:
     return errors
 
 
+def check_visible_name(repo: Path, baseline: dict) -> list[str]:
+    """JLW-0002: per merkbestand is elke afwijkende regel exact de upstream-regel met "Jellyfin" → "Jelly Leon"."""
+    config = baseline.get(VISIBLE_NAME_KEY)
+    if config is None:
+        return []  # nog geen merkwijziging vastgelegd (P0); in deze repo bewaakt test_real_repo… dat hij er is
+    if not isinstance(config, dict) or not all(
+        isinstance(config.get(key), str) and config.get(key) for key in ("naam", "upstream_naam")
+    ) or not isinstance(config.get("bestanden"), list) or not config["bestanden"]:
+        return [f"{BASELINE_REL}: '{VISIBLE_NAME_KEY}' vraagt naam, upstream_naam en een niet-lege lijst bestanden"]
+    VISIBLE_NAME, UPSTREAM_VISIBLE_NAME = config["naam"], config["upstream_naam"]  # noqa: N806
+    errors: list[str] = []
+    base = baseline["upstream_commit"]
+    for rel in config["bestanden"]:
+        proc = run_git(repo, "show", f"{base}:{rel}", check=False)
+        path = repo / rel
+        if proc.returncode != 0 or not path.is_file():
+            errors.append(f"{rel}: merkbestand ontbreekt upstream ({base[:12]}) of in de fork (JLW-0002 herbeoordelen)")
+            continue
+        upstream_lines = proc.stdout.splitlines()
+        fork_lines = path.read_text(encoding="utf-8").splitlines()
+        if len(upstream_lines) != len(fork_lines):
+            errors.append(f"{rel}: {len(fork_lines)} regels, upstream {len(upstream_lines)}; de merkpatch wijzigt alleen "
+                          "bestaande regels (zichtbare naam), niets toevoegen of weghalen")
+            continue
+        changed = 0
+        for number, (old, new) in enumerate(zip(upstream_lines, fork_lines), start=1):
+            if old == new:
+                continue
+            changed += 1
+            if UPSTREAM_VISIBLE_NAME not in old or new != old.replace(UPSTREAM_VISIBLE_NAME, VISIBLE_NAME):
+                errors.append(f"{rel}:{number}: afwijking is geen pure naamwijziging "
+                              f"'{UPSTREAM_VISIBLE_NAME}' → '{VISIBLE_NAME}' (enige merkwijziging, ADR-0003)")
+        if changed == 0:
+            errors.append(f"{rel}: zichtbare naam '{VISIBLE_NAME}' ontbreekt (JLW-0002 niet toegepast)")
+    return errors
+
+
 def check_evidence(repo: Path) -> list[str]:
     path = repo / EVIDENCE_REL
     if not path.is_file():
@@ -150,12 +196,12 @@ def check_evidence(repo: Path) -> list[str]:
         entry_id = str(entry.get("id", ""))
         where = f"{EVIDENCE_REL}[{entry_id or index}]"
         if not ID_RE.match(entry_id):
-            errors.append(f"{where}: id '{entry_id}' is geen Excel-ID (B03-001, I24-24-01, EX48, D15, …)")
+            errors.append(f"{where}: id '{entry_id}' is geen Excel-ID (B03-001, I24-24-01, EX48, JLT-60, D15, …)")
         if entry_id in seen:
             errors.append(f"{where}: dubbel id")
         seen.add(entry_id)
         status = entry.get("status", "")
-        allowed = STATUS_TEST if entry_id.startswith("EX") else (
+        allowed = STATUS_TEST if TEST_ID_RE.match(entry_id) else (
             STATUS_BESLUIT if entry_id.startswith("D") else STATUS_WERKPAKKET
         )
         if status not in allowed:
@@ -180,7 +226,7 @@ def check_validatie(where: str, entry_id: str, validatie: object) -> list[str]:
     """§11: alleen waarden uit de vaste lijst, gescheiden door "; ", geen dubbele, geen vrije tekst."""
     if not isinstance(validatie, str) or not validatie:
         return [f"{where}: validatie ontbreekt (contract §11)"]
-    allowed = VALIDATIE_WAARDEN + (VALIDATIE_TESTMATRIX if entry_id.startswith("EX") else ())
+    allowed = VALIDATIE_WAARDEN + (VALIDATIE_TESTMATRIX if TEST_ID_RE.match(entry_id) else ())
     parts = validatie.split(VALIDATIE_SEP)
     errors = [
         f"{where}: validatie '{part}' is geen toegestane waarde (contract §11; kies uit {' | '.join(allowed)}; "
@@ -235,7 +281,8 @@ def main(argv: list[str] | None = None) -> int:
     repo = args.repo.resolve()
     try:
         baseline = load_baseline(repo)
-        errors = check_baseline(repo, baseline) + check_identity(repo, baseline) + check_evidence(repo)
+        errors = (check_baseline(repo, baseline) + check_identity(repo, baseline) + check_visible_name(repo, baseline)
+                  + check_evidence(repo))
     except ToolError as exc:
         print(f"FOUT: {exc}", file=sys.stderr)
         return exc.exit_code if exc.exit_code != 1 else 3

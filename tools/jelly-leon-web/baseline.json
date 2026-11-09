@@ -8,5 +8,15 @@
   "fork_version": "12.4.0-jl.0",
   "package_name": "jellyfin-web",
   "server_repo": "https://github.com/lvos04/jelly-leon",
-  "notes_nl": "Bron van waarheid voor de basis van de webclient (ADR-0005). Moet gelijk lopen met web_upstream_tag/web_upstream_commit in lvos04/jelly-leon tools/jelly-leon/baseline.json. Alleen wijzigen via tools/jelly-leon-web/upstream_sync.py of een bewuste release-commit."
+  "notes_nl": "Bron van waarheid voor de basis van de webclient (ADR-0005). Moet gelijk lopen met web_upstream_tag/web_upstream_commit in lvos04/jelly-leon tools/jelly-leon/baseline.json. Alleen wijzigen via tools/jelly-leon-web/upstream_sync.py of een bewuste release-commit.",
+  "zichtbare_naam": {
+    "naam": "Jelly Leon",
+    "upstream_naam": "Jellyfin",
+    "patch": "JLW-0002",
+    "bestanden": [
+      "src/index.html",
+      "src/manifest.json",
+      "src/scripts/libraryMenu.js"
+    ]
+  }
 }
