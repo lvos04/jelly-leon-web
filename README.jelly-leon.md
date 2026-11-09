@@ -23,6 +23,8 @@ gebaseerd op Jellyfin, met dank aan alle [upstream-bijdragers](CONTRIBUTORS.md).
   JW3: op de eigen bouwmachine werkt `npm ci` (ook het `classList.js`-archief van GitHub) zonder omweg; volledige
   build, 68 tool-tests en smoketest fork 30/30 / stock 24/24 opnieuw lokaal geslaagd
   ([`BOUWVERIFICATIE_P0.md`](docs/platform-v2/BOUWVERIFICATIE_P0.md) §8). JW1 (12.x) volgt in een eigen fase vóór P4.
+- Onafhankelijke review contract 1.2: alles opnieuw zoals de CI (75 tool-tests, vitest 160/160, build, smoketest
+  fork 30/30 / stock 24/24); bewijscontrole fail-closed gemaakt ([`BOUWVERIFICATIE_P0.md`](docs/platform-v2/BOUWVERIFICATIE_P0.md) §9).
 - Niet gevalideerd: echte tv's/telefoons (D15), echte NAS, een echte run van `upstream-sync.yml`.
 
 ## Documenten

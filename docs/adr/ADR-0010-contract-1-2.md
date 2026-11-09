@@ -37,6 +37,12 @@
    `Gereed`/`Geslaagd` nooit; niet-leeg `bewijs`; en elke commit die in `bewijs` staat bestaat echt in deze repo
    (verwijzingen naar andere repos schrijf je als `<repo>@<sha>`). Tot nu toe was elke tekst die met een geldige waarde
    begon (en zelfs alleen `NIET GEVALIDEERD`) toegestaan.
+   **Aanvulling uit de onafhankelijke review (2026-11-09, commit `b20c7e1a9`):** de controle was *fail-open* — een
+   ontbrekend `EVIDENCE.json` gaf "in orde". Nu is een ontbrekend bestand of een lege lijst een overtreding; elke
+   `NIET GEVALIDEERD (…)` die in `blokkade` staat, moet ook als lijstwaarde in `validatie` staan (anders leest de
+   Excel-kolom als volledig Sim-getest terwijl de blokkade iets anders zegt); `bijgewerkt` moet een echte
+   kalenderdatum zijn. Daarbij zijn B03-001 (`echte NAS` erbij), I24-24-01 (`hardware` erbij) en I06-06-07
+   (`echte NAS` erbij) rechtgezet: hun blokkade/opdracht noemde al een echte NAS of echte apparaten.
 5. **A5–A7 en A6 — niet van toepassing.** Deze repo is geen nieuwe dienst: geen enrollment, geen dienst-JWT, geen
    `hub-link.json` (§2.3 regel 2: Jellyfin/Jelly Leon heeft in v1 geen enrollment). Er is geen eigen image (ADR-0008),
    dus ook geen eigen rooktest op `Uid 568`/`CapEff 0`/`NoNewPrivs 1`; dat doet de jelly-leon-image

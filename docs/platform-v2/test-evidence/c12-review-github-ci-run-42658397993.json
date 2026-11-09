@@ -1,0 +1,23 @@
+{
+  "workflow": "Jelly Leon Web CI (.github/workflows/jelly-leon-web-ci.yml)",
+  "run": "https://github.com/lvos04/jelly-leon-web/actions/runs/42658397993",
+  "trigger": "push naar ccr-c133d7a0-kuz1cv (onafhankelijke review contractronde 1.2)",
+  "commit": "b20c7e1a92d69a7b7c0600704f6f46a76c30cb61",
+  "gestart_utc": "2026-11-09T16:48:03Z",
+  "beeindigd_utc": "2026-11-09T16:54:26Z",
+  "resultaat": "success",
+  "jobs": [
+    {
+      "job": "Forkregels (patchregister, identiteit, workflows, tool-tests)",
+      "resultaat": "success",
+      "detail": "forkconsistentie in orde (met de fail-closed bewijscontrole), drifttest 'Contractkopieën in orde (online tegen GitHub): 2 bestanden byte-gelijk aan lvos04/ai-server-manager@8b54f3940', pytest 74 geslaagd + 1 overgeslagen (vergelijking met een naastgelegen ai-server-manager-checkout, alleen lokaal)"
+    },
+    {"job": "Upstream-kwaliteit (lint)", "resultaat": "success", "detail": "eslint 0 fouten, 103 upstream-waarschuwingen"},
+    {"job": "Upstream-kwaliteit (stylelint)", "resultaat": "success", "detail": ""},
+    {"job": "Upstream-kwaliteit (build:check)", "resultaat": "success", "detail": "tsc --noEmit"},
+    {"job": "Upstream-kwaliteit (test)", "resultaat": "success", "detail": "vitest 12 bestanden, 160/160"},
+    {"job": "Productiebuild + artefact", "resultaat": "success", "detail": "webpack 5.99.9 compiled with 2 warnings (upstream-grootte); ES-Check zonder fouten; artefact tarball + sha256 + bouwinfo"},
+    {"job": "Web-client-smoketest (Chromium + officiële server, simulator)", "resultaat": "success", "detail": "Resultaat fork: geslaagd (30/30 stappen) — Sim-getest op een GitHub-runner, geen echte apparaten"}
+  ],
+  "validatie": "Sim-getest (CI-runner; geen echte apparaten, geen NAS)"
+}

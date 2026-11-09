@@ -12,6 +12,8 @@ Zware stappen draaiden één voor één met `nice -n 10`. **Niets hiervan is op 
 > **§8** is de contractronde 1.2 (JW3): alles opnieuw op de eigen bouwmachine van de gebruiker, nu mét direct
 > internet — `npm ci` haalt het `classList.js`-archief zonder omweg van GitHub. §1–§7 beschrijven de oude
 > gedeelde sandbox (proxy, 4 CPU) en blijven als geschiedenis staan.
+> **§9** is de onafhankelijke review van contractronde 1.2: alles opnieuw zoals de CI, één fail-open in de
+> bewijscontrole gerepareerd en drie `validatie`-waarden in `EVIDENCE.json` rechtgezet.
 
 | # | Commando (repo-root) | Exit | Uitkomst | Duur |
 |---|---|---|---|---|
@@ -255,4 +257,49 @@ serverimage op deze machine; geen echte tv/telefoon (D15) en geen NAS.
 - Run [42653944868](https://github.com/lvos04/jelly-leon-web/actions/runs/42653944868) op `0e23e7e73` (met de
   nieuwe artefact-acties) **geslaagd**: 7/7 jobs, drifttest online in orde, tool-tests 67 + 1 overgeslagen, artefact
   via upload v7.0.2 → download v8.0.2 doorgegeven, smoketest 30/30; geen Node 20-waarschuwing meer.
+- Blijft open: echte apparaten (D15), echte NAS, een echte run van `upstream-sync.yml` op GitHub.
+
+## 9. Onafhankelijke review contractronde 1.2 (2026-11-09, na commit `2cf0bb12a`)
+
+Alles opnieuw gedraaid zoals de CI het doet, op de eigen bouwmachine (Node v22.23.4 / npm 10.9.9, venv buiten de
+repo, `nice -n 10`, één zware stap tegelijk). Samenvatting: `test-evidence/c12-review-qa.json`; rapporten:
+`test-evidence/c12-review-web-smoke/`.
+
+| Commando | Exit | Uitkomst |
+|---|---|---|
+| `check_fork_consistency.py` / `patch_register_check.py` / `workflow_check.py --overzicht` | 0 / 0 / 0 | basis v10.11.11, 0 core-patches, 9 upstream-workflows bewaakt |
+| `contract_drift.py --online --github` en `--bron-map ../ai-server-manager` | 0 / 0 | beide kopieën byte-gelijk aan `ai-server-manager@8b54f3940`, geen driftwaarschuwing |
+| `pytest -q -c tools/jelly-leon-web/pytest.ini tools/jelly-leon-web/tests` | 0 | 68 geslaagd op `2cf0bb12a`; **75** na de reparatie hieronder |
+| `actionlint` (beide eigen workflows, shellcheck 0.11.0) | 0 | geen meldingen |
+| `npm ci` → `lint` → `stylelint` → `build:check` → `test` | 0 | 1724 pakketten; eslint 0 fouten (103 upstream-waarschuwingen); 0; 0; vitest 160/160 |
+| `npm run build:production` + `npm run escheck` | 0 / 0 | webpack 5.99.9, 2 upstream-groottewaarschuwingen, 2317 bestanden; ES-versie in orde |
+| `docker buildx imagetools inspect docker.io/jellyfin/jellyfin:10.11.11` | 0 | digest = de pin `sha256:aefb67e6…` in CI en smoketest |
+| `web_smoke.py --modus fork --dist dist` | 0 | **30/30** (incl. herstart, terugzetten naar stock-web met dezelfde `/config`, weer vooruit) |
+| `web_smoke.py --modus stock` | 0 | **24/24** (referentie) |
+| GitHub Actions run [42658397993](https://github.com/lvos04/jelly-leon-web/actions/runs/42658397993) op `b20c7e1a9` | success | 7/7 jobs; tool-tests 74 + 1 overgeslagen; drifttest online in orde; smoketest **30/30** (`test-evidence/c12-review-github-ci-run-42658397993.json`) |
+
+### 9.1 Gevonden en gerepareerd (commit `b20c7e1a9`)
+
+1. **Fail-open in de bewijscontrole:** `check_fork_consistency.py` gaf "in orde" als `docs/platform-v2/EVIDENCE.json`
+   ontbrak, en accepteerde een lege lijst. Nu beide een overtreding (exit 1).
+2. **Blokkade zonder validatie:** een `NIET GEVALIDEERD (…)` in `blokkade` hoefde niet in `validatie` te staan. Nu
+   verplicht. Daardoor rechtgezet in `EVIDENCE.json`: B03-001 (`NIET GEVALIDEERD (echte NAS)` erbij, de blokkade
+   noemde al een echte installatie van de jelly-leon-image), I24-24-01 (`NIET GEVALIDEERD (hardware)` erbij: bestaande
+   clients) en I06-06-07 (`NIET GEVALIDEERD (echte NAS)` erbij: stap 7 vraagt NAS-versie en image-digest).
+3. **Datum:** `bijgewerkt` werd alleen op het patroon gecontroleerd (`2026-02-30` ging door); nu een echte datum.
+
+Zeven nieuwe negatieve tests; ze falen op de oude code (7 failed) en slagen op de nieuwe.
+
+### 9.2 Gecontroleerd en in orde (geen wijziging nodig)
+
+- Contract §2/§2.3/§9: geen eigen image, Custom App, manifest, API of OpenAPI in deze repo (ADR-0008, ADR-0010
+  punt 5). Installatie alleen via de standaard Custom App `jelly-leon`; nergens YAML, *Install via YAML*,
+  `custom_compose_config` of compose als installatiemethode; geen `latest`; de serverimage voor de smoketest staat op
+  digest. Node in CI (22.23.4) = de web-stage van de jelly-leon-image (alleen gelezen).
+- Veiligheid: geen shell-/sudo-endpoint (er is geen dienst), geen Docker-socket; de smoketest start de officiële
+  image als 568:568, `--cap-drop ALL`, `no-new-privileges`, alleen op 127.0.0.1; wachtwoorden per run willekeurig en
+  niet in het rapport; het pushtoken van de upstream-sync zit alleen in een job zonder code van derden.
+- Commits ná `2795f3365` eindigen met precies één `Co-Authored-By:`-regel en zonder sessielink (§12); oudere commits
+  hebben nog een sessielink (historie niet herschreven, geen force-push). Geen modelnaam of model-ID in code of docs.
+- De opgegeven GitHub-runs 42652520494, 42653944868 en 42655666863 bestaan en zijn geslaagd (`gh run list`).
 - Blijft open: echte apparaten (D15), echte NAS, een echte run van `upstream-sync.yml` op GitHub.

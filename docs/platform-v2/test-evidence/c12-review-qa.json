@@ -1,0 +1,121 @@
+{
+  "test": "Onafhankelijke review/QA contractronde 1.2 — alles opnieuw zoals de CI het draait, lokaal",
+  "datum": "2026-11-09",
+  "code": "commit 2cf0bb12a (eindstand van de bouwer); daarna reparatie b20c7e1a9 (alleen tools/jelly-leon-web)",
+  "omgeving": {
+    "machine": "eigen bouwmachine van de gebruiker (Ubuntu 26.04, 22 CPU's, 14 GiB RAM gedeeld met andere bouwers), Docker Engine; direct internet",
+    "node": "v22.23.4 / npm 10.9.9 (zelfde tarball als de bouwer, buiten de repo)",
+    "python": "3.12.16 (venv buiten de repo, tools/jelly-leon-web/requirements-dev.txt)",
+    "browser": "Chromium 153.0.8010.12 headless (Playwright 1.63.0)",
+    "werkwijze": "zware stappen één voor één met nice -n 10"
+  },
+  "stappen": [
+    {
+      "commando": "python tools/jelly-leon-web/check_fork_consistency.py",
+      "exit": 0,
+      "uitkomst": "basis v10.11.11 (35c0793ece3a), forkversie 10.11.11-jl.0, identiteit jellyfin-web 10.11.11"
+    },
+    {
+      "commando": "python tools/jelly-leon-web/patch_register_check.py",
+      "exit": 0,
+      "uitkomst": "82 afwijkende paden, 0 in core-patches, 0 patches in register"
+    },
+    {
+      "commando": "python tools/jelly-leon-web/contract_drift.py --online --github",
+      "exit": 0,
+      "uitkomst": "2 bestanden byte-gelijk aan lvos04/ai-server-manager@8b54f3940, geen driftwaarschuwing"
+    },
+    {
+      "commando": "python tools/jelly-leon-web/contract_drift.py --bron-map ../ai-server-manager",
+      "exit": 0,
+      "uitkomst": "idem tegen de lokale bron; sha256 van beide kopieën gelijk aan de bron"
+    },
+    {
+      "commando": "python tools/jelly-leon-web/workflow_check.py --overzicht",
+      "exit": 0,
+      "uitkomst": "9 upstream-workflows (geheimen bewaakt), 2 eigen (vastgezet)"
+    },
+    {
+      "commando": "python -m pytest -q -c tools/jelly-leon-web/pytest.ini tools/jelly-leon-web/tests",
+      "exit": 0,
+      "uitkomst": "68 geslaagd op 2cf0bb12a; 75 geslaagd na b20c7e1a9 (7 nieuwe negatieve tests; die falen op de oude code: 7 failed)"
+    },
+    {
+      "commando": "actionlint .github/workflows/jelly-leon-web-ci.yml .github/workflows/upstream-sync.yml (shellcheck 0.11.0)",
+      "exit": 0,
+      "uitkomst": "geen meldingen"
+    },
+    {
+      "commando": "npm ci --no-audit --no-fund",
+      "exit": 0,
+      "duur_s": 15,
+      "uitkomst": "1724 pakketten"
+    },
+    {
+      "commando": "npm run lint",
+      "exit": 0,
+      "duur_s": 90,
+      "uitkomst": "eslint 0 fouten, 103 upstream-waarschuwingen"
+    },
+    {
+      "commando": "npm run stylelint",
+      "exit": 0,
+      "uitkomst": "0 problemen"
+    },
+    {
+      "commando": "npm run build:check",
+      "exit": 0,
+      "uitkomst": "tsc --noEmit 0 fouten"
+    },
+    {
+      "commando": "npm test -- --maxWorkers=4",
+      "exit": 0,
+      "uitkomst": "vitest 12 bestanden, 160/160"
+    },
+    {
+      "commando": "JELLYFIN_VERSION=<commit> npm run build:production",
+      "exit": 0,
+      "duur_s": 90,
+      "uitkomst": "webpack 5.99.9 compiled with 2 warnings (upstream-grootte); dist 2317 bestanden, ~60 MB"
+    },
+    {
+      "commando": "npm run escheck",
+      "exit": 0,
+      "uitkomst": "geen ES-versiefouten"
+    },
+    {
+      "commando": "docker buildx imagetools inspect docker.io/jellyfin/jellyfin:10.11.11",
+      "exit": 0,
+      "uitkomst": "digest sha256:aefb67e6… = de pin in de CI en web_smoke.py"
+    },
+    {
+      "commando": "python tools/jelly-leon-web/e2e/web_smoke.py --modus fork --dist dist --uitvoer <map>",
+      "exit": 0,
+      "duur_s": 58,
+      "uitkomst": "30/30 incl. herstart, terugzetten naar de stock-webclient met dezelfde /config en weer vooruit; rapport c12-review-web-smoke/web-smoke-fork.json"
+    },
+    {
+      "commando": "python tools/jelly-leon-web/e2e/web_smoke.py --modus stock --uitvoer <map>",
+      "exit": 0,
+      "duur_s": 60,
+      "uitkomst": "24/24 (referentie); rapport c12-review-web-smoke/web-smoke-stock.json"
+    },
+    {
+      "commando": "GitHub Actions run 42658397993 (commit b20c7e1a9)",
+      "exit": 0,
+      "uitkomst": "success, 7/7 jobs; pytest 74 geslaagd + 1 overgeslagen; drifttest online in orde; vitest 160/160; smoketest fork 30/30 (test-evidence/c12-review-github-ci-run-42658397993.json)"
+    }
+  ],
+  "gevonden_en_gerepareerd": [
+    "check_fork_consistency.py was fail-open: zonder docs/platform-v2/EVIDENCE.json meldde de CI-stap 'in orde'; een lege lijst gold ook als in orde. Nu beide een overtreding (commit b20c7e1a9).",
+    "Een 'NIET GEVALIDEERD (…)' in blokkade hoefde niet in validatie te staan; nu verplicht. B03-001 (blokkade noemde een echte installatie van de jelly-leon-image), I24-24-01 (bestaande clients) en I06-06-07 (NAS-versie en image-digest als bewijs) misten daardoor een waarde in validatie; rechtgezet.",
+    "bijgewerkt werd alleen op het patroon gecontroleerd (2026-02-30 ging door); nu een echte kalenderdatum."
+  ],
+  "validatie": "Sim-getest (headless Chromium + officiële serverimage op deze machine; geen echte apparaten, geen NAS)",
+  "niet_gedaan": [
+    "Echte tv's/telefoons/Chromecast (D15): NIET GEVALIDEERD (hardware).",
+    "Installatie op een echte TrueNAS (via de jelly-leon-image): NIET GEVALIDEERD (echte NAS).",
+    "upstream-sync.yml op GitHub: nog nooit gedraaid (scheduled/handmatig alleen vanaf de standaardbranch).",
+    "Alles-in-één image, CUSTOM_APP-formulier, healthz/readyz, OpenAPI: niet van toepassing in deze repo (ADR-0008, ADR-0010 punt 5); de webclient zit in de jelly-leon-image."
+  ]
+}
