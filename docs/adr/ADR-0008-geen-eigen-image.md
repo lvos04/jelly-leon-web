@@ -20,8 +20,8 @@
 
 ## Gevolgen
 
-- Installatie blijft uitsluitend de standaard TrueNAS Custom App `jelly-leon` (contract 1.1); compose wordt hier niet
-  gebruikt.
+- Installatie blijft uitsluitend de standaard TrueNAS Custom App `jelly-leon` (contract 1.1; ongewijzigd in 1.2 §2.3);
+  compose wordt hier niet gebruikt.
 - Gemeld als contract-issue (generieke "image per repo"-eis ↔ §2 "jelly-leon(+web)").
 - Followup voor `lvos04/jelly-leon`: de web-stage kan het CI-artefact gebruiken i.p.v. zelf `npm ci` te draaien
   (lost ook de GitHub-archief-403 in beperkte bouwomgevingen op).

@@ -2,7 +2,7 @@
 
 **Er is geen eigen Custom App voor jelly-leon-web.** De webclient wordt meegebouwd in de image
 `ghcr.io/lvos04/jelly-leon` en door de Jellyfin-server zelf geserveerd op `http://<NAS-adres>:<hostpoort>/web/`
-(contract 1.1 §2: app `jelly-leon` = "server incl. web-client"; ADR-0008).
+(contract 1.2 §2 en §2.3: app `jelly-leon` = "server incl. web-client", containerpoort 8096; ADR-0008).
 
 - Installeren, bijwerken en terugzetten: uitsluitend via de standaard TrueNAS Custom App **`jelly-leon`** — formulier en
   velden staan in `lvos04/jelly-leon` → `deploy/truenas/CUSTOM_APP.md`. Normaal doet het platform dat via de TrueNAS-API

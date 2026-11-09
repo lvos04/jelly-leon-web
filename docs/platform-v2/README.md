@@ -8,8 +8,22 @@ Hier staan alleen de eigen B-, I-, A- en promptdocumenten plus de gedeelde archi
 
 Onbekende NAS-gegevens (D01–D18) worden nooit met voorbeeldwaarden ingevuld; ze worden via de onboarding-wizard in de web-UI vastgelegd.
 
+## Platformcontract 1.2
+
+- [`PLATFORM_CONTRACTEN.md`](PLATFORM_CONTRACTEN.md) (`contracts 1.2`) en
+  [`CONTRACT_1.2_CONFORMITEIT.md`](CONTRACT_1.2_CONFORMITEIT.md) zijn **byte-gelijke kopieën** uit
+  `lvos04/ai-server-manager` (bron van waarheid) op bron-commit `8b54f39`. Nooit hier bewerken: een nieuwe stand
+  overnemen = opnieuw byte-gelijk kopiëren en bron-commit + sha256 in `tools/jelly-leon-web/contract_drift.py`
+  bijwerken. De drifttest (`contract_drift.py`, tests in `tools/jelly-leon-web/tests/test_contract_drift.py`) draait in
+  de CI-job *forkregels* online tegen de bron.
+- Relatieve links in de kopieën (bv. `../adr/ADR-0011-contract-1-2.md`) wijzen naar bestanden in
+  `ai-server-manager`, niet naar de ADR's van deze repo.
+- Wat 1.2 voor deze repo betekent (JW1–JW3, A1–A7): [`docs/adr/ADR-0010-contract-1-2.md`](../adr/ADR-0010-contract-1-2.md).
+
 ## Bestanden
 
+- `PLATFORM_CONTRACTEN.md` (kopie, `contracts 1.2`)
+- `CONTRACT_1.2_CONFORMITEIT.md` (kopie)
 - `00_START/BESLUITEN_EN_ONBEKENDEN.md`
 - `00_START/INHOUDSOPGAVE.md`
 - `00_START/INHOUD_CONTROLE.json`

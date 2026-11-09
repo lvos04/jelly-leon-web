@@ -1,7 +1,7 @@
 # Architectuurbesluiten (ADR) — jelly-leon-web
 
 Elke keuze in deze fork die afwijkt van "upstream jellyfin-web ongewijzigd laten" of die het platformcontract
-(`docs/platform-v2/PLATFORM_CONTRACTEN.md`, versie 1.1) interpreteert, staat hier als ADR. De serverfork
+(`docs/platform-v2/PLATFORM_CONTRACTEN.md`, versie 1.2 — byte-gelijke kopie, zie ADR-0010) interpreteert, staat hier als ADR. De serverfork
 `lvos04/jelly-leon` heeft een eigen reeks (zelfde nummering waar het onderwerp overeenkomt).
 Status: `Voorgesteld` → `Aanvaard` → (`Vervangen door ADR-xxxx`).
 
@@ -16,3 +16,4 @@ Status: `Voorgesteld` → `Aanvaard` → (`Vervangen door ADR-xxxx`).
 | [ADR-0007](ADR-0007-upstream-workflows-in-fork.md) | Upstream-workflows ongewijzigd; guards bewaakt door `workflow_check.py` | Aanvaard |
 | [ADR-0008](ADR-0008-geen-eigen-image.md) | Geen eigen image of Custom App: de webclient zit in `ghcr.io/lvos04/jelly-leon` | Aanvaard |
 | [ADR-0009](ADR-0009-toolchain-node-en-afhankelijkheden.md) | Toolchain Node 22.23.4 in CI; afhankelijkheden niet zelf patchen in P0 | Aanvaard |
+| [ADR-0010](ADR-0010-contract-1-2.md) | Platformcontract 1.2: byte-gelijke kopie met drifttest, strenge bewijsregels (§11), JW1–JW3 | Aanvaard |
