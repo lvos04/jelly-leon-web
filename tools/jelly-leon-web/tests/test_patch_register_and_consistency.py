@@ -344,3 +344,84 @@ def test_evidence_jlt_testrijen_volgen_testmatrixregels(repos):
     write(fork, "docs/platform-v2/EVIDENCE.json", json.dumps([dict(entry, id="B03-014")]) + "\n")
     assert any("Sim-geslaagd" in e for e in check_fork_consistency.check_evidence(fork))
 
+
+# --------------------------------------------------------------------------------- toolchain (ADR-0011)
+
+NODE_IMAGE = "docker.io/library/node:24.22.2-bookworm-slim@sha256:" + "a" * 64
+SERVER_IMAGE = "docker.io/jellyfin/jellyfin:12.4@sha256:" + "b" * 64
+TOOLCHAIN = {"node": "24.22.2", "npm": "11.19.1", "node_image": NODE_IMAGE, "server_image": SERVER_IMAGE}
+CI_YML = f"""env:
+  JLW_SERVER_IMAGE: {SERVER_IMAGE}
+jobs:
+  kwaliteit:
+    steps:
+      - uses: actions/setup-node@x
+        with:
+          node-version: 24.22.2
+  build:
+    container:
+      image: {NODE_IMAGE}
+"""
+SMOKE = f'DEFAULT_IMAGE = (\n    "{SERVER_IMAGE}"\n)\n'
+
+
+def toolchain_repo(tmp_path: Path, engines: dict | None = None, ci: str = CI_YML, smoke: str = SMOKE) -> Path:
+    repo = tmp_path / "tc"
+    write(repo, "package.json", json.dumps({"name": "jellyfin-web", "version": "12.4.0",
+                                            "engines": engines or {"node": ">=24.0.0", "npm": ">=11.0.0"}}))
+    write(repo, ".github/workflows/jelly-leon-web-ci.yml", ci)
+    write(repo, ".github/workflows/upstream-sync.yml", "steps:\n  - with:\n      node-version: 24.22.2\n")
+    write(repo, "tools/jelly-leon-web/e2e/web_smoke.py", smoke)
+    return repo
+
+
+def test_toolchain_consistent_is_ok(tmp_path):
+    repo = toolchain_repo(tmp_path)
+    assert check_fork_consistency.check_toolchain(repo, {"toolchain": TOOLCHAIN}) == []
+    assert check_fork_consistency.check_toolchain(repo, {}) == []  # nog niet vastgelegd: niets te controleren
+
+
+@pytest.mark.parametrize(
+    "aanpassing, melding",
+    [
+        ({"node": "22.23.4", "node_image": NODE_IMAGE.replace("24.22.2", "22.23.4")}, "voldoet niet aan engines.node"),
+        ({"npm": "10.9.9"}, "voldoet niet aan engines.npm"),
+        ({"node_image": "docker.io/library/node:24.22.2-bookworm-slim"}, "niet op @sha256-digest"),
+        ({"server_image": "docker.io/jellyfin/jellyfin:latest"}, "niet op @sha256-digest"),
+        ({"node": "24"}, "geen exacte versie"),
+        ({"node_image": NODE_IMAGE.replace("24.22.2", "24.21.0")}, "hoort bij Node 24.22.2"),
+    ],
+)
+def test_toolchain_errors(tmp_path, aanpassing, melding):
+    errors = check_fork_consistency.check_toolchain(toolchain_repo(tmp_path), {"toolchain": dict(TOOLCHAIN, **aanpassing)})
+    assert any(melding in e for e in errors), errors
+
+
+def test_toolchain_drift_in_workflows_and_smoketest(tmp_path):
+    ci = CI_YML.replace("node-version: 24.22.2", "node-version: 22.23.4").replace(
+        SERVER_IMAGE, SERVER_IMAGE.replace("12.4", "10.11.11"))
+    ci = ci.replace(NODE_IMAGE, NODE_IMAGE.replace("a" * 64, "c" * 64))
+    smoke = SMOKE.replace("12.4", "12.3")
+    errors = check_fork_consistency.check_toolchain(toolchain_repo(tmp_path, ci=ci, smoke=smoke), {"toolchain": TOOLCHAIN})
+    assert any("node-version 22.23.4" in e for e in errors)
+    assert any("JLW_SERVER_IMAGE" in e for e in errors)
+    assert any("build-container" in e for e in errors)
+    assert any("DEFAULT_IMAGE" in e for e in errors)
+
+
+def test_toolchain_upstream_engines_raised_blocks_sync(tmp_path):
+    """Een upstream-sync die Node 26 eist, faalt op de toolchain (bewust besluit nodig), nooit stil."""
+    repo = toolchain_repo(tmp_path, engines={"node": ">=26.0.0", "npm": ">=11.0.0"})
+    errors = check_fork_consistency.check_toolchain(repo, {"toolchain": TOOLCHAIN})
+    assert len(errors) == 1 and "engines.node '>=26.0.0'" in errors[0]
+    repo = toolchain_repo(tmp_path / "b", engines={"node": "^24 || ^26"})
+    assert any("onbekende vorm" in e for e in check_fork_consistency.check_toolchain(repo, {"toolchain": TOOLCHAIN}))
+
+
+def test_toolchain_van_deze_repo_vastgelegd_en_consistent():
+    baseline = json.loads((REPO_ROOT / "tools/jelly-leon-web/baseline.json").read_text(encoding="utf-8"))
+    toolchain = baseline["toolchain"]
+    assert toolchain["node"].startswith("24.") and toolchain["npm"].startswith("11.")
+    assert "@sha256:" in toolchain["node_image"] and "@sha256:" in toolchain["server_image"]
+    assert ":12.4@" in toolchain["server_image"]
+    assert check_fork_consistency.check_toolchain(REPO_ROOT, baseline) == []

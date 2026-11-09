@@ -10,6 +10,9 @@ Controles:
   * zichtbare naam (JLW-0002, ADR-0003/ADR-0011): in de merkbestanden is de enige afwijking van upstream dat
     "Jellyfin" "Jelly Leon" werd, regel voor regel; elders mag die vervanging niet stilletjes gebeuren
     (de merkwijziging blijft de enige, de technische identiteit blijft "Jellyfin");
+  * toolchain (ADR-0011): baseline.json → toolchain (Node/npm exact, Node-image en serverimage op @sha256) is de enige
+    bron; de eigen workflows (node-version, build-container, JLW_SERVER_IMAGE) en de smoketest gebruiken exact die
+    waarden, en Node/npm voldoen aan `engines` in package.json (12.x: node >= 24, npm >= 11);
   * docs/platform-v2/EVIDENCE.json volgt contract §11 (1.2, conformiteitspunt A4): precies de velden uit §11,
     geldige statussen, nooit "Gereed"/"Geslaagd" in deze bouwomgeving, `validatie` alleen waarden uit de vaste lijst
     (meerdere gescheiden door "; ", toelichting hoort in `opmerking`), repo = jelly-leon-web, en elke commit die in
@@ -78,6 +81,17 @@ TEST_ID_RE = re.compile(r"^(EX\d{2}|JLT-\d{2})$")
 # Zichtbare naam (JLW-0002): staat in baseline.json onder "zichtbare_naam" (naam, upstream_naam, bestanden), zodat
 # een upstream-sync de instelling meeneemt. Alleen die bestanden, alleen die vervanging (ADR-0003, ADR-0011).
 VISIBLE_NAME_KEY = "zichtbare_naam"
+
+TOOLCHAIN_KEY = "toolchain"
+EXACT_VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
+ENGINE_RE = re.compile(r"^>=\s*(\d+(?:\.\d+){0,2})$")
+OWN_WORKFLOWS = (".github/workflows/jelly-leon-web-ci.yml", ".github/workflows/upstream-sync.yml")
+CI_WORKFLOW = ".github/workflows/jelly-leon-web-ci.yml"
+SMOKE_TEST = "tools/jelly-leon-web/e2e/web_smoke.py"
+NODE_VERSION_RE = re.compile(r"^\s*node-version:\s*['\"]?([^'\"\s#]+)", re.MULTILINE)
+SERVER_ENV_RE = re.compile(r"^\s*JLW_SERVER_IMAGE:\s*(\S+)", re.MULTILINE)
+CONTAINER_IMAGE_RE = re.compile(r"^\s*image:\s*(\S+)", re.MULTILINE)
+SMOKE_DEFAULT_RE = re.compile(r'DEFAULT_IMAGE = \(\s*"([^"]+)"\s*\)')
 
 
 def check_baseline(repo: Path, baseline: dict) -> list[str]:
@@ -167,6 +181,70 @@ def check_visible_name(repo: Path, baseline: dict) -> list[str]:
                               f"'{UPSTREAM_VISIBLE_NAME}' → '{VISIBLE_NAME}' (enige merkwijziging, ADR-0003)")
         if changed == 0:
             errors.append(f"{rel}: zichtbare naam '{VISIBLE_NAME}' ontbreekt (JLW-0002 niet toegepast)")
+    return errors
+
+
+def _version_tuple(text: str) -> tuple[int, int, int]:
+    parts = [int(p) for p in text.split(".")]
+    return tuple((parts + [0, 0, 0])[:3])  # type: ignore[return-value]
+
+
+def check_toolchain(repo: Path, baseline: dict) -> list[str]:
+    """Eén bron voor Node/npm en de images (ADR-0011): gelijk in workflows en smoketest, voldoet aan engines."""
+    toolchain = baseline.get(TOOLCHAIN_KEY)
+    if toolchain is None:
+        return []  # nog geen toolchain vastgelegd; in deze repo eist test_real_repo… dat hij er is
+    if not isinstance(toolchain, dict):
+        return [f"{BASELINE_REL}: '{TOOLCHAIN_KEY}' moet een object zijn"]
+    errors: list[str] = []
+    node, npm = str(toolchain.get("node", "")), str(toolchain.get("npm", ""))
+    node_image, server_image = str(toolchain.get("node_image", "")), str(toolchain.get("server_image", ""))
+    for label, value in (("node", node), ("npm", npm)):
+        if not EXACT_VERSION_RE.match(value):
+            errors.append(f"{BASELINE_REL}: toolchain.{label} '{value}' is geen exacte versie x.y.z")
+    for label, value in (("node_image", node_image), ("server_image", server_image)):
+        if "@sha256:" not in value or ":latest" in value:
+            errors.append(f"{BASELINE_REL}: toolchain.{label} '{value}' niet op @sha256-digest vastgezet (of latest)")
+    if node and f":{node}-" not in node_image:
+        errors.append(f"{BASELINE_REL}: toolchain.node_image hoort bij Node {node} (tag '{node}-…'), niet '{node_image}'")
+    if errors:
+        return errors
+
+    engines = read_package_json(repo).get("engines") or {}
+    for label, have in (("node", node), ("npm", npm)):
+        wanted = engines.get(label)
+        if wanted is None:
+            continue
+        match = ENGINE_RE.match(str(wanted).strip())
+        if not match:
+            errors.append(f"package.json: engines.{label} '{wanted}' heeft een onbekende vorm; toolchain handmatig beoordelen")
+        elif _version_tuple(have) < _version_tuple(match.group(1)):
+            errors.append(
+                f"toolchain.{label} {have} voldoet niet aan engines.{label} '{wanted}' (upstream vraagt een nieuwere "
+                "toolchain: bewust besluit + images op digest bijwerken, ADR-0011)"
+            )
+
+    for rel in OWN_WORKFLOWS:
+        path = repo / rel
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for found in NODE_VERSION_RE.findall(text):
+            if found != node:
+                errors.append(f"{rel}: node-version {found} ≠ toolchain.node {node} ({BASELINE_REL})")
+        for found in CONTAINER_IMAGE_RE.findall(text):
+            if "node:" in found and found != node_image:
+                errors.append(f"{rel}: build-container {found} ≠ toolchain.node_image ({BASELINE_REL})")
+    ci = repo / CI_WORKFLOW
+    if ci.is_file():
+        found = SERVER_ENV_RE.findall(ci.read_text(encoding="utf-8"))
+        if found != [server_image]:
+            errors.append(f"{CI_WORKFLOW}: JLW_SERVER_IMAGE {found or 'ontbreekt'} ≠ toolchain.server_image ({BASELINE_REL})")
+    smoke = repo / SMOKE_TEST
+    if smoke.is_file():
+        found = SMOKE_DEFAULT_RE.findall(smoke.read_text(encoding="utf-8"))
+        if found != [server_image]:
+            errors.append(f"{SMOKE_TEST}: DEFAULT_IMAGE {found or 'ontbreekt'} ≠ toolchain.server_image ({BASELINE_REL})")
     return errors
 
 
@@ -282,7 +360,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         baseline = load_baseline(repo)
         errors = (check_baseline(repo, baseline) + check_identity(repo, baseline) + check_visible_name(repo, baseline)
-                  + check_evidence(repo))
+                  + check_toolchain(repo, baseline) + check_evidence(repo))
     except ToolError as exc:
         print(f"FOUT: {exc}", file=sys.stderr)
         return exc.exit_code if exc.exit_code != 1 else 3

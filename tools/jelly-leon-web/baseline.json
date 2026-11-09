@@ -18,5 +18,13 @@
       "src/manifest.json",
       "src/scripts/libraryMenu.js"
     ]
+  },
+  "toolchain": {
+    "node": "24.22.2",
+    "npm": "11.19.1",
+    "node_image": "docker.io/library/node:24.22.2-bookworm-slim@sha256:01d566e8d94d8c619591d78652babfccd3c6992a3dffa9ed5ab39e11cf6c70e9",
+    "server_image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+    "gemeten": "2026-11-09 (docker buildx imagetools inspect; nodejs.org/dist/index.json)",
+    "notes_nl": "Eén bron voor de bouw- en testimages (ADR-0011): CI (setup-node en de build-container), de smoketest en de web-stage van lvos04/jelly-leon (NODE_IMAGE) gebruiken exact deze waarden. check_fork_consistency.py bewaakt dat ze overal gelijk zijn en aan engines in package.json voldoen."
   }
 }

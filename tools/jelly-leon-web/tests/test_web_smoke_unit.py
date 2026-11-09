@@ -46,7 +46,7 @@ class FakeApi:
         assert path.startswith("/Audio/item-1/stream") and token
         return (200 if self.stream else 404), self.stream
 
-    def raw_get(self, path):
+    def raw_get(self, path, headers=None):
         assert path == "/web/index.html"
         return 200, self.index_html
 
@@ -100,7 +100,7 @@ def test_verify_data_detects_data_loss_broken_stream_and_acl_leak(api, failing_s
 def test_served_web_distinguishes_fork_and_stock(tmp_path):
     dist = tmp_path / "dist"
     dist.mkdir()
-    fork_html = b"<html><title>Jellyfin</title><!-- fork --></html>"
+    fork_html = b"<html><title>Jelly Leon</title><!-- fork --></html>"
     (dist / "index.html").write_bytes(fork_html)
     args = web_smoke.build_parser().parse_args(["--modus", "fork", "--dist", str(dist)])
     assert web_smoke.served_web(FakeApi(index_html=fork_html), args, fork_web=True)[0] is True
@@ -108,8 +108,106 @@ def test_served_web_distinguishes_fork_and_stock(tmp_path):
     stock = b"<html><title>Jellyfin</title><!-- stock --></html>"
     assert web_smoke.served_web(FakeApi(index_html=stock), args, fork_web=False)[0] is True
     assert web_smoke.served_web(FakeApi(index_html=stock), args, fork_web=True)[0] is False
-    renamed = b"<html><title>Iets anders</title></html>"  # zichtbare naam mag in P0 niet wijzigen
+    renamed = b"<html><title>Iets anders</title></html>"  # stock-webclient heet altijd "Jellyfin"
     assert web_smoke.served_web(FakeApi(index_html=renamed), args, fork_web=False)[0] is False
+
+
+def test_fork_build_without_visible_name_is_not_accepted(tmp_path):
+    """Een fork-build die nog 'Jellyfin' heet (merkpatch JLW-0002 kwijt na een sync) faalt."""
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    old = b"<html><title>Jellyfin</title><!-- fork zonder merkpatch --></html>"
+    (dist / "index.html").write_bytes(old)
+    args = web_smoke.build_parser().parse_args(["--modus", "fork", "--dist", str(dist)])
+    ok, detail = web_smoke.served_web(FakeApi(index_html=old), args, fork_web=True)
+    assert ok is False and "ONTBREEKT" in detail
+
+
+@pytest.mark.parametrize(
+    "html, manifest, expected, ok",
+    [
+        (b'<meta name="application-name" content="Jelly Leon"><title>Jelly Leon</title>',
+         {"name": "Jelly Leon", "short_name": "Jelly Leon"}, "Jelly Leon", True),
+        (b'<meta name="application-name" content="Jellyfin"><title>Jellyfin</title>',
+         {"name": "Jellyfin", "short_name": "Jellyfin"}, "Jellyfin", True),
+        (b'<meta name="application-name" content="Jelly Leon"><title>Jelly Leon</title>',
+         {"name": "Jelly Leon", "short_name": "Jellyfin"}, "Jelly Leon", False),   # half doorgevoerd
+        (b'<meta name="application-name" content="Jellyfin"><title>Jelly Leon</title>',
+         {"name": "Jelly Leon", "short_name": "Jelly Leon"}, "Jelly Leon", False),
+        (b"<title>Jelly Leon</title>", None, "Jelly Leon", False),                    # geen manifest
+    ],
+)
+def test_visible_name_check(html, manifest, expected, ok):
+    assert web_smoke.visible_name_check(html, manifest, expected)[0] is ok
+
+
+class LegacyAuthApi:
+    def __init__(self, legacy_status=401, modern_status=200):
+        self.legacy_status = legacy_status
+        self.modern_status = modern_status
+        self.calls = []
+
+    def raw_get(self, path, headers=None):
+        self.calls.append((path, dict(headers or {})))
+        if headers and "Authorization" in headers:
+            return self.modern_status, b"{}"
+        return self.legacy_status, b""
+
+
+def test_legacy_auth_refused_and_modern_header_accepted():
+    rep, api = report(), LegacyAuthApi()
+    web_smoke.legacy_auth_phase(api, rep, "tok-geheim", "adm-1")
+    assert rep.passed and len(api.calls) == 4
+    sent = {next(iter(h), "query") for _, h in api.calls}
+    assert sent == {"X-Emby-Token", "X-Emby-Authorization", "Authorization", "query"}
+    assert any("api_key=tok-geheim" in path for path, _ in api.calls)
+
+
+@pytest.mark.parametrize("legacy, modern", [(200, 200), (401, 401)])
+def test_legacy_auth_on_or_modern_broken_fails(legacy, modern):
+    rep = report()
+    web_smoke.legacy_auth_phase(LegacyAuthApi(legacy, modern), rep, "t", "adm-1")
+    assert not rep.passed
+
+
+class SessionsApi:
+    def __init__(self, sessions, status=200):
+        self.sessions, self.status = sessions, status
+
+    def json(self, method, path, token=None, **_kwargs):
+        assert (method, path) == ("GET", "/Sessions") and token
+        return self.status, self.sessions
+
+
+SMOKE_SESSION = {"Client": web_smoke.CLIENT["Client"], "ApplicationVersion": "0.1.0"}
+
+
+@pytest.mark.parametrize(
+    "sessions, keys, ok",
+    [
+        ([SMOKE_SESSION, {"Client": "Jellyfin Web", "ApplicationVersion": "12.4.0"}], ["jellyfin_credentials"], True),
+        ([SMOKE_SESSION, {"Client": "Jelly Leon Web", "ApplicationVersion": "12.4.0"}], ["jellyfin_credentials"], False),
+        ([SMOKE_SESSION, {"Client": "Jellyfin Web", "ApplicationVersion": "12.4.0-jl.0"}], ["jellyfin_credentials"], False),
+        ([SMOKE_SESSION], ["jellyfin_credentials"], False),                                  # geen browsersessie
+        ([{"Client": "Jellyfin Web", "ApplicationVersion": "12.4.0"}], ["jelly_leon_credentials"], False),
+    ],
+)
+def test_web_identity_check(sessions, keys, ok):
+    assert web_smoke.web_identity_check(SessionsApi(sessions), IDS, "12.4.0", keys)[0] is ok
+
+
+def test_layouts_option():
+    assert web_smoke.parse_layouts("modern,legacy,modern") == ["modern", "legacy"]
+    assert web_smoke.parse_layouts(" legacy ") == ["legacy"]
+    with pytest.raises(ValueError):
+        web_smoke.parse_layouts("tv")
+    with pytest.raises(ValueError):
+        web_smoke.parse_layouts("")
+    assert web_smoke.LAYOUTS == {"modern": None, "legacy": "desktop-legacy"}
+
+
+def test_default_server_image_is_digest_pinned_12x():
+    assert "@sha256:" in web_smoke.DEFAULT_IMAGE and ":12." in web_smoke.DEFAULT_IMAGE
 
 
 def test_unreachable_server_gives_failed_report_not_success(tmp_path, capsys):
