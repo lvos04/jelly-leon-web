@@ -1,0 +1,12 @@
+{
+  "schema_version": "1",
+  "upstream_repo": "https://github.com/jellyfin/jellyfin-web",
+  "upstream_tag": "v10.11.11",
+  "upstream_version": "10.11.11",
+  "upstream_commit": "35c0793ece3adbd247eab290ae1effab851f3d37",
+  "local_upstream_tag": "upstream-v10.11.11",
+  "fork_version": "10.11.11-jl.0",
+  "package_name": "jellyfin-web",
+  "server_repo": "https://github.com/lvos04/jelly-leon",
+  "notes_nl": "Bron van waarheid voor de basis van de webclient (ADR-0005). Moet gelijk lopen met web_upstream_tag/web_upstream_commit in lvos04/jelly-leon tools/jelly-leon/baseline.json. Alleen wijzigen via tools/jelly-leon-web/upstream_sync.py of een bewuste release-commit."
+}

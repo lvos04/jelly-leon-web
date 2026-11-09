@@ -1,0 +1,4 @@
+# Lokale Python-artefacten van de forktools (fork-eigen pad; upstream-.gitignore blijft ongewijzigd).
+__pycache__/
+*.pyc
+.pytest_cache/
