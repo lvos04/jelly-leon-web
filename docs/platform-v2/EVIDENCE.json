@@ -1,0 +1,52 @@
+[
+  {
+    "id": "B03-001",
+    "status": "Bezig",
+    "validatie": "Sim-getest",
+    "bewijs": "webdeel: commits 59c1b398e (forkregels: baseline, patchregister-, identiteits- en workflowcontrole, upstream-sync; 31 pytest-tests), 7e7cb578d (web-client-smoketest), d7cd9e9dc (jelly-leon-web-ci.yml, upstream-sync.yml), ee06cfe58 (FORK_STRATEGIE.md, INVENTARIS.md, BOUWVERIFICATIE_P0.md, ADR-0001..0009, PATCHES.md 0 core-patches); docs/platform-v2/BOUWVERIFICATIE_P0.md: npm ci ok, eslint 0 fouten, stylelint 0, tsc 0, vitest 160/160, build:production + escheck ok; test-evidence/p0-web-smoke/web-smoke-fork.json en web-smoke-stock.json 21/21 (Chromium 153 tegen jellyfin/jellyfin:10.11.11@sha256:aefb67e6…)",
+    "blokkade": "Acceptatie (stock Jellyfin-clients loggen in en streamen zonder regressie) vraagt echte clients/tv's/telefoons (D15) en een echte installatie van de jelly-leon-image: NIET GEVALIDEERD (hardware). Jelly Leon Web-CI nog niet op GitHub uitgevoerd. Gebruikersbesluit nodig over zichtbaarheid van de repo's en het GHCR-pakket (GPL: bron beschikbaar).",
+    "opmerking": "Webclient-broncode identiek aan upstream jellyfin-web v10.11.11 (0 core-patches); branding in P0 ongewijzigd (titel/manifest 'Jellyfin' gecontroleerd). Fork-build en stock-webclient gedragen zich gelijk in de smoketest (inloggen, fout wachtwoord geweigerd, zoeken, afspelen 200, kinderprofiel ziet titel niet, 360/390/768/1440 px). Serverdeel: zie EVIDENCE.json in lvos04/jelly-leon.",
+    "repo": "jelly-leon-web",
+    "bijgewerkt": "2026-11-09"
+  },
+  {
+    "id": "B03-013",
+    "status": "Bezig",
+    "validatie": "Sim-getest",
+    "bewijs": "webdeel: commit 59c1b398e (tools/jelly-leon-web/upstream_sync.py kies/merge/herbasis, tests/test_upstream_sync.py 10 tests), d7cd9e9dc (.github/workflows/upstream-sync.yml: sync/<tag> → forkregels, lint, tsc, vitest, build, smoketest; nooit deployen); docs/adr/ADR-0006-upstream-sync.md; test-evidence/p0-upstream-syncproef-v12.4.json",
+    "blokkade": "Acceptatie (fork-migratie terug te zetten met DB-back-up + binary, streaming blijft werken) vraagt een echte NAS: NIET GEVALIDEERD (echte NAS). upstream-sync.yml nog niet op GitHub gedraaid (scheduled alleen vanaf de standaardbranch); pushen van sync/<tag> vraagt geheim JLW_SYNC_PUSH_TOKEN (gebruiker).",
+    "opmerking": "Echte syncproef naar jellyfin-web v12.4 (lokaal, niets gepusht): merge 30 conflicten (upstream-backports), herbasis 0 conflicten; daarna faalt de sync terecht op workflow_run.yml (onbewaakte upstream-geheimen) en de eis Node >= 24/npm >= 11. Patch stack web: 0.",
+    "repo": "jelly-leon-web",
+    "bijgewerkt": "2026-11-09"
+  },
+  {
+    "id": "EX48",
+    "status": "Bezig",
+    "validatie": "Sim-geslaagd",
+    "bewijs": "tools/jelly-leon-web/tests/test_upstream_sync.py::test_merge_incompatible_tag_fails_cleanly_ex48 en ::test_herbasis_fails_cleanly_when_patch_no_longer_applies_ex48; test-evidence/p0-upstream-syncproef-v12.4.json (echte upstream v12.4: merge exit 2; herbasis → workflow_check exit 1 en npm ci EBADENGINE); commits 59c1b398e, d7cd9e9dc",
+    "blokkade": "Echte run van upstream-sync.yml op GitHub nog niet uitgevoerd.",
+    "opmerking": "Webdeel: een incompatibele upstream-update laat de sync falen (exit 2, branch opgeruimd, werkboom schoon) of laat de controles erna falen; de workflow publiceert nooit een image of release.",
+    "repo": "jelly-leon-web",
+    "bijgewerkt": "2026-11-09"
+  },
+  {
+    "id": "I24-24-01",
+    "status": "Bezig",
+    "validatie": "Sim-getest",
+    "bewijs": "webdeel: baseline exact op upstream-tag v10.11.11 (tools/jelly-leon-web/baseline.json, check_fork_consistency.py, patch_register_check.py: 0 core-patches); smoketest fork en stock beide 21/21 (test-evidence/p0-web-smoke/); commits 59c1b398e, 7e7cb578d",
+    "blokkade": "Testbibliotheek op de echte NAS en bestaande clients: NIET GEVALIDEERD (echte NAS).",
+    "opmerking": "Fork v0 van de webclient = 10.11.11-jl.0 (wordt nooit gepubliceerd; ADR-0005).",
+    "repo": "jelly-leon-web",
+    "bijgewerkt": "2026-11-09"
+  },
+  {
+    "id": "I06-06-07",
+    "status": "Bezig",
+    "validatie": "Sim-getest",
+    "bewijs": "webdeel: upstream tracking via upstream-sync.yml + sync/<tag> (ADR-0006); CI-compat-smoke = job web-e2e in jelly-leon-web-ci.yml (web_smoke.py tegen de officiële server); lokaal 21/21; commits 7e7cb578d, d7cd9e9dc",
+    "blokkade": "Jellyfin-clientmatrix op echte apparaten (D15): NIET GEVALIDEERD (hardware).",
+    "opmerking": "Geen webpatch nodig in P0; uitbreidingen eerst via serverplugin/configuratie (ADR-0001).",
+    "repo": "jelly-leon-web",
+    "bijgewerkt": "2026-11-09"
+  }
+]
