@@ -14,10 +14,16 @@ Stappen (elk met eigen resultaat in het rapport):
   Browser (nl-NL) Nederlandse aanmeldpagina met titel "Jellyfin" → fout wachtwoord geweigerd (negatieve test) →
           inloggen → startscherm met bibliotheek → zoeken → detailpagina → afspelen (stream 200/206) →
           kinderprofiel vindt de titel niet → 360/390/768/1440 px zonder horizontale overloop (+ schermafbeelding)
+  Opslag  (alleen als dit script de server zelf start; uit te zetten met --zonder-herstart)
+          herstart van de container → zelfde server-ID, beheerder logt in, testnummer met hetzelfde ID, stream 200,
+          kinderprofiel ziet nog steeds niets; in modus fork daarna "terugzetten": dezelfde /config met de
+          stock-webclient van de image (vorige binary, B03-013) en weer "vooruit" naar de fork-build — telkens
+          dezelfde controles. Zo blijft na herstart en terugzetten alles werken zonder dataverlies.
 
 Wachtwoorden worden per run willekeurig gemaakt en nooit in het rapport gezet; tokens worden geredigeerd.
 Dit bewijst alleen protocol- en UI-gedrag in een browser — echte tv's/telefoons blijven NIET GEVALIDEERD (D15).
 Exitcodes: 0 = alle stappen geslaagd, 1 = minstens één stap mislukt, 3 = omgevingsfout (docker/playwright/dist).
+Een omgevingsfout geeft nooit een rapport met resultaat "geslaagd": de ontbrekende stap staat er als mislukt in.
 """
 
 from __future__ import annotations
@@ -151,13 +157,24 @@ class Api:
 # --------------------------------------------------------------------------------------------- server (docker)
 
 def docker(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    proc = subprocess.run(["docker", *args], capture_output=True, text=True, check=False)
+    try:
+        proc = subprocess.run(["docker", *args], capture_output=True, text=True, check=False)
+    except FileNotFoundError:
+        proc = subprocess.CompletedProcess(["docker", *args], 127, "", "docker niet gevonden")
     if check and proc.returncode != 0:
         raise RuntimeError(f"docker {' '.join(args[:2])} mislukte: {proc.stderr.strip()}")
     return proc
 
 
-def prepare_dirs(work: Path) -> tuple[Path, Path, Path, str]:
+@dataclass(frozen=True)
+class ServerDirs:
+    config: Path
+    cache: Path
+    media: Path
+    user: str
+
+
+def prepare_dirs(work: Path) -> ServerDirs:
     """config/cache (schrijfbaar voor de containergebruiker) en media (alleen-lezen) in een eigen werkmap."""
     config, cache, media = work / "config", work / "cache", work / "media"
     for path in (config, cache, media):
@@ -175,17 +192,22 @@ def prepare_dirs(work: Path) -> tuple[Path, Path, Path, str]:
     else:
         user = f"{os.getuid()}:{os.getgid()}"
     os.chmod(work, 0o755)
-    return config, cache, media, user
+    return ServerDirs(config=config, cache=cache, media=media, user=user)
 
 
-def start_server(args: argparse.Namespace, work: Path, name: str) -> None:
-    config, cache, media, user = prepare_dirs(work)
+def start_server(args: argparse.Namespace, dirs: ServerDirs, name: str, fork_web: bool | None = None) -> None:
+    """Start de officiële image als 568 (of de huidige gebruiker), zonder capabilities, alleen op 127.0.0.1.
+
+    fork_web=True mount de fork-build over de ingebouwde webclient; False laat de stock-webclient van de image staan.
+    """
+    if fork_web is None:
+        fork_web = args.mode == "fork"
     cmd = [
-        "run", "-d", "--name", name, "--user", user, "--cap-drop", "ALL",
+        "run", "-d", "--name", name, "--user", dirs.user, "--cap-drop", "ALL",
         "--security-opt", "no-new-privileges", "-p", f"127.0.0.1:{args.port}:8096",
-        "-v", f"{config}:/config", "-v", f"{cache}:/cache", "-v", f"{media}:{LIBRARY_PATH}:ro",
+        "-v", f"{dirs.config}:/config", "-v", f"{dirs.cache}:/cache", "-v", f"{dirs.media}:{LIBRARY_PATH}:ro",
     ]
-    if args.mode == "fork":
+    if fork_web:
         cmd += ["-v", f"{args.dist.resolve()}:{WEB_DIR_IN_IMAGE}:ro"]
     cmd.append(args.image)
     docker(*cmd)
@@ -295,6 +317,78 @@ def api_phase(api: Api, args: argparse.Namespace, report: Report, creds: dict) -
     status, _ = api.request("GET", f"/Users/{admin_id}", token=None)
     report.add("zonder token geweigerd", status == 401, f"GET /Users/<id> zonder token → HTTP {status} (verwacht 401)")
     return {"token": token, "admin_id": admin_id, "server_id": server_id, "item_id": item_id, "kid_id": kid_id}
+
+
+# --------------------------------------------------------------------------------------------- opslag: herstart/terugzetten
+
+def verify_data(api: Api, report: Report, label: str, creds: dict, ids: dict) -> None:
+    """Na herstart of terugzetten: zelfde server, zelfde gebruikers/bibliotheek, stream en server-ACL werken nog."""
+    status, info = api.json("GET", "/System/Info/Public")
+    server_id = info.get("Id") if isinstance(info, dict) else None
+    status_a, auth = api.json("POST", "/Users/AuthenticateByName",
+                              body={"Username": creds["admin_user"], "Pw": creds["admin_password"]})
+    token = auth.get("AccessToken") if isinstance(auth, dict) else None
+    if token:
+        report.secrets.append(token)
+    item_status, item = (api.json("GET", f"/Items/{ids['item_id']}?userId={ids['admin_id']}", token=token)
+                         if token else (0, None))
+    same_item = item_status == 200 and isinstance(item, dict) and item.get("Id") == ids["item_id"]
+    report.add(
+        f"{label}: gegevens behouden",
+        status == 200 and server_id == ids["server_id"] and status_a == 200 and bool(token) and same_item,
+        f"server-ID {'gelijk' if server_id == ids['server_id'] else 'ANDERS'}; beheerder logt in met hetzelfde "
+        f"wachtwoord: HTTP {status_a}; testnummer met hetzelfde ID: HTTP {item_status}",
+    )
+    s_status, body = (api.request("GET", f"/Audio/{ids['item_id']}/stream?static=true", token=token)
+                      if token else (0, b""))
+    stream_ok = s_status in (200, 206) and body[:4] == b"RIFF" and len(body) > 1000
+    kid_status, kid_auth = api.json("POST", "/Users/AuthenticateByName", device_id="jlw-web-smoke-kind",
+                                    body={"Username": creds["kid_user"], "Pw": creds["kid_password"]})
+    kid_token = kid_auth.get("AccessToken") if isinstance(kid_auth, dict) else None
+    if kid_token:
+        report.secrets.append(kid_token)
+    search = urllib.parse.urlencode({"searchTerm": "Sinus", "Recursive": "true", "IncludeItemTypes": "Audio"})
+    k_status, k_body = (api.json("GET", f"/Items?{search}&userId={ids['kid_id']}", token=kid_token,
+                                 device_id="jlw-web-smoke-kind") if kid_token else (0, None))
+    k_count = k_body.get("TotalRecordCount") if isinstance(k_body, dict) else None
+    report.add(
+        f"{label}: stream en server-ACL werken",
+        stream_ok and kid_status == 200 and k_status == 200 and k_count == 0,
+        f"GET /Audio/<id>/stream → HTTP {s_status}, {len(body)} bytes; kinderprofiel logt in (HTTP {kid_status}) "
+        f"en vindt {k_count} resultaten (verwacht 0)",
+    )
+
+
+def served_web(api: Api, args: argparse.Namespace, fork_web: bool) -> tuple[bool, str]:
+    status, index_html = api.raw_get("/web/index.html")
+    title_ok = b"<title>Jellyfin</title>" in index_html
+    if fork_web:
+        same = status == 200 and index_html == (args.dist / "index.html").read_bytes()
+        return same and title_ok, f"HTTP {status}; fork-build {'geserveerd' if same else 'NIET geserveerd'}"
+    is_fork = args.mode == "fork" and index_html == (args.dist / "index.html").read_bytes()
+    ok = status == 200 and title_ok and not is_fork
+    return ok, f"HTTP {status}; stock-webclient van de image {'geserveerd' if ok else 'NIET geserveerd'}"
+
+
+def persistence_phase(api: Api, args: argparse.Namespace, report: Report, creds: dict, ids: dict,
+                      dirs: ServerDirs, container: str) -> None:
+    stages: list[tuple[str, bool | None]] = [("herstart", None)]
+    if args.mode == "fork":
+        stages += [("terugzetten naar stock-webclient (zelfde /config)", False),
+                   ("weer vooruit naar de fork-build (zelfde /config)", True)]
+    for label, fork_web in stages:
+        if fork_web is None:
+            docker("restart", "-t", "20", container)
+            fork_web_now = args.mode == "fork"
+        else:
+            docker("rm", "-f", container)
+            start_server(args, dirs, container, fork_web=fork_web)
+            fork_web_now = fork_web
+        healthy = wait_healthy(api, args.start_timeout)
+        served_ok, detail = served_web(api, args, fork_web_now) if healthy else (False, "server niet gezond")
+        if not report.add(f"{label}: server gezond, juiste webclient", healthy and served_ok, detail):
+            return
+        verify_data(api, report, label, creds, ids)
 
 
 # --------------------------------------------------------------------------------------------- browserdeel
@@ -474,6 +568,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--start-timeout", type=float, default=180.0)
     parser.add_argument("--scan-timeout", type=float, default=120.0)
     parser.add_argument("--houd-server", dest="keep", action="store_true", help="container na afloop laten staan")
+    parser.add_argument("--zonder-herstart", dest="skip_restart", action="store_true",
+                        help="herstart-/terugzetcontroles overslaan (sneller; niet in CI)")
     return parser
 
 
@@ -503,23 +599,32 @@ def main(argv: list[str] | None = None) -> int:
     container = f"jlw-web-smoke-{args.mode}-{os.getpid()}"
     work = Path(tempfile.mkdtemp(prefix="jlw-web-smoke-"))
     exit_code = 0
+    dirs: ServerDirs | None = None
     try:
         if not args.url:
             try:
-                start_server(args, work, container)
+                dirs = prepare_dirs(work)
+                start_server(args, dirs, container)
             except (RuntimeError, FileNotFoundError) as exc:
                 print(f"FOUT: server starten mislukt: {exc}", file=sys.stderr)
-                return 3
+                report.add("server starten", False, f"{type(exc).__name__}: {exc}")
+                exit_code = 3
         api = Api(base)
-        ids = api_phase(api, args, report, creds)
+        ids = api_phase(api, args, report, creds) if not exit_code else None
         if ids:
             try:
                 ui_phase(base, args, report, creds, ids)
             except ImportError:
                 print("FOUT: playwright ontbreekt (pip install -r tools/jelly-leon-web/requirements-dev.txt)", file=sys.stderr)
+                report.add("browserdeel uitgevoerd", False, "playwright ontbreekt: browserstappen niet uitgevoerd")
                 exit_code = 3
             except Exception as exc:  # noqa: BLE001 - elke browserfout is een mislukte stap, nooit een stille pass
                 report.add("browserdeel zonder onverwachte fout", False, f"{type(exc).__name__}: {str(exc).splitlines()[0][:300]}")
+        if ids and dirs is not None and not args.skip_restart:
+            try:
+                persistence_phase(api, args, report, creds, ids, dirs, container)
+            except RuntimeError as exc:
+                report.add("herstart/terugzetten zonder onverwachte fout", False, str(exc)[:300])
         if not report.passed and not args.url:
             logs = docker("logs", "--tail", "60", container, check=False)
             report.facts["serverlog_staart"] = report.redact((logs.stdout + logs.stderr)[-4000:])
