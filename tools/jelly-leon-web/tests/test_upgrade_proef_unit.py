@@ -112,16 +112,17 @@ def test_ci_uses_the_same_old_and_new_images():
 
 
 @pytest.mark.parametrize(
-    "verwacht, oud_gezond, schade, geslaagd",
+    "verwacht, oud_gezond, oud_aanmelden, schade, geslaagd, oordeel",
     [
-        ("weigert", False, False, True),    # acceptatie JLT-61 b: oude image weigert
-        ("weigert", True, False, False),    # oude image start: acceptatie niet gehaald
-        ("start", True, False, True),       # gemeten upstream-gedrag vastgelegd, geen stille schade
-        ("start", True, True, False),       # stille schade is altijd een fout
-        ("start", False, False, False),     # gedrag veranderd t.o.v. de meting: opnieuw beoordelen
+        ("weigert", False, None, False, True, "Sim-geslaagd"),   # acceptatie JLT-61 b: oude image weigert
+        ("weigert", True, 200, False, False, "Sim-mislukt"),     # oude image start: acceptatie niet gehaald
+        ("start", True, 500, False, True, "Sim-mislukt"),        # gemeten: gezond maar onbruikbaar, geen schade
+        ("start", True, 200, False, True, "Sim-mislukt"),        # gemeten: start en werkt, toont VÓÓR
+        ("start", True, 200, True, False, "Sim-mislukt"),        # schade is altijd een fout
+        ("start", False, None, False, False, "Sim-geslaagd"),    # gedrag veranderd t.o.v. de meting: opnieuw beoordelen
     ],
 )
-def test_negative_phase_modes(monkeypatch, verwacht, oud_gezond, schade, geslaagd):
+def test_negative_phase_modes(monkeypatch, verwacht, oud_gezond, oud_aanmelden, schade, geslaagd, oordeel):
     calls = {"health": 0}
 
     def wait_healthy(api, timeout):
@@ -134,6 +135,11 @@ def test_negative_phase_modes(monkeypatch, verwacht, oud_gezond, schade, geslaag
     class Proc:
         stdout, stderr = "running 0", ""
 
+    class OldApi:
+        def json(self, method, path, **kwargs):
+            assert path == "/Users/AuthenticateByName"
+            return oud_aanmelden, ({"AccessToken": "oud"} if oud_aanmelden == 200 else None)
+
     monkeypatch.setattr(upgrade_proef, "docker", lambda *a, **k: Proc())
     monkeypatch.setattr(upgrade_proef, "login", lambda *a, **k: ("tok", {}))
     voor = {"gebruikers": {"jl-beheer": {"kijkgegevens": {"x": {"Played": True}}}}}
@@ -141,7 +147,8 @@ def test_negative_phase_modes(monkeypatch, verwacht, oud_gezond, schade, geslaag
     monkeypatch.setattr(upgrade_proef, "snapshot", lambda api, token: na)
     args = upgrade_proef.build_parser().parse_args(["--negatief-verwacht", verwacht])
     rep, extra = web_smoke.Report(mode="upgrade", base_url="x", image="x"), {}
-    upgrade_proef.negative_phase(None, args, rep, {"admin_user": "a", "admin_password": "p"}, None, "c",
+    upgrade_proef.negative_phase(OldApi(), args, rep, {"admin_user": "a", "admin_password": "p"}, None, "c",
                                  args, args, voor, extra)
     assert rep.passed is geslaagd
-    assert extra["jlt61b"].startswith("Sim-geslaagd" if not oud_gezond else "Sim-mislukt")
+    assert extra["jlt61b"].startswith(oordeel)
+    assert ("MET schade" in extra["jlt61b"]) is schade

@@ -233,38 +233,58 @@ def resume_check(base: str, args: argparse.Namespace, report: Report, creds: dic
 
 def negative_phase(api: Api, args: argparse.Namespace, report: Report, creds: dict, dirs, container: str,
                    old: argparse.Namespace, new: argparse.Namespace, before: dict, extra: dict) -> None:
-    """JLT-61 (b): alleen de oude image op de gemigreerde /config; daarna stille schade meten."""
+    """JLT-61 (b): alleen de oude image op de gemigreerde /config; bruikbaarheid en blijvende schade meten."""
     web_smoke.start_server(old, dirs, container, fork_web=False)
     old_healthy = web_smoke.wait_healthy(api, args.negative_timeout)
     state = docker("inspect", "-f", "{{.State.Status}} {{.State.ExitCode}}", container, check=False).stdout.strip()
+    measured: dict = {"gezond": old_healthy, "container": state, "aanmelden_http": None, "leesbaar": False,
+                      "verschillen_via_oude_api": []}
+    if old_healthy:
+        status, auth = api.json("POST", "/Users/AuthenticateByName",
+                                body={"Username": creds["admin_user"], "Pw": creds["admin_password"]})
+        measured["aanmelden_http"] = status
+        token = auth.get("AccessToken") if isinstance(auth, dict) else None
+        if token:
+            report.secrets.append(token)
+            try:
+                seen_by_old = snapshot(api, token)
+                measured["leesbaar"] = True
+                measured["verschillen_via_oude_api"] = differences(before, seen_by_old)
+            except RuntimeError as exc:
+                measured["leesfout"] = str(exc)
     logs = docker("logs", "--tail", "40", container, check=False)
     extra["negatief_logstaart"] = report.redact((logs.stdout + logs.stderr)[-1500:])
-    extra["negatief_oude_image_gezond"] = old_healthy
-    damage: list[str] = []
-    if old_healthy:
-        token, _ = login(api, creds["admin_user"], creds["admin_password"], report)
-        seen_by_old = snapshot(api, token) if token else {}
-        damage += [f"oude image: {d}" for d in (differences(before, seen_by_old) if seen_by_old else ["niet leesbaar"])]
     docker("rm", "-f", container, check=False)
+
     web_smoke.start_server(new, dirs, container, fork_web=True)
     new_again = web_smoke.wait_healthy(api, args.start_timeout)
     token, _ = login(api, creds["admin_user"], creds["admin_password"], report) if new_again else (None, {})
     again = snapshot(api, token) if token else {}
-    damage += [f"12.x daarna: {d}" for d in (differences(before, again) if again else ["niet leesbaar"])]
+    persistent = differences(before, again) if again else ["12.x daarna niet leesbaar"]
     docker("rm", "-f", container, check=False)
-    extra["negatief_verschillen"] = damage
-    extra["jlt61b"] = ("Sim-geslaagd: de oude image weigert de gemigreerde data" if not old_healthy else
-                       "Sim-mislukt: de oude stock-image start zonder weigering op de gemigreerde data "
-                       f"({'zonder' if not damage else 'MET'} meetbare schade aan de kijkgegevens)")
+    # Schade = blijvend verlies (12.x daarna ≠ VÓÓR) of een oude image die andere kijkgegevens toont dan VÓÓR.
+    damage = [f"12.x daarna: {d}" for d in persistent] + [f"oude API: {d}" for d in measured["verschillen_via_oude_api"]]
+    measured["blijvende_verschillen_12x_daarna"] = persistent
+    extra["negatief"] = measured
+    if not old_healthy:
+        verdict = "Sim-geslaagd: de oude image wordt niet gezond op de gemigreerde data"
+    elif not measured["leesbaar"]:
+        verdict = (f"Sim-mislukt: de oude stock-image meldt zich gezond maar is onbruikbaar (aanmelden HTTP "
+                   f"{measured['aanmelden_http']}), zonder duidelijke melding")
+    else:
+        verdict = "Sim-mislukt: de oude stock-image start zonder weigering en werkt op de gemigreerde data"
+    verdict += "; " + ("geen blijvende schade (12.x daarna = VÓÓR)" if not damage else "MET schade aan de kijkgegevens")
+    extra["jlt61b"] = verdict
     if args.negative_expected == "weigert":
         ok = not old_healthy and not damage
         label = "negatief (JLT-61 b): oude image op de gemigreerde /config faalt zichtbaar, zonder stille schade"
     else:
         ok = old_healthy and not damage
         label = ("negatief (JLT-61 b), gemeten upstream-gedrag: oude stock-image start op de gemigreerde /config; "
-                 "geen stille schade (oude API en daarna 12.x = VÓÓR)")
+                 "geen stille schade (12.x daarna = VÓÓR)")
     report.add(label, ok, f"oude image gezond binnen {args.negative_timeout:.0f} s: {old_healthy}; container {state}; "
-               f"{len(damage)} verschillen{': ' + '; '.join(damage[:4]) if damage else ''}; {extra['jlt61b']}")
+               f"aanmelden HTTP {measured['aanmelden_http']}; {len(damage)} verschillen"
+               f"{': ' + '; '.join(damage[:4]) if damage else ''}; {verdict}")
 
 
 def run(args: argparse.Namespace) -> tuple[Report, dict, int]:
