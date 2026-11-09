@@ -9,6 +9,9 @@ Zware stappen draaiden één voor één met `nice -n 10`. **Niets hiervan is op 
 
 > §1–§6 zijn de metingen van de bouwer; de onafhankelijke review met herhaalde metingen, gevonden
 > problemen en reparaties staat in **§7** (o.a. 50 tool-tests, actionlint mét shellcheck, smoketest 30/30).
+> **§8** is de contractronde 1.2 (JW3): alles opnieuw op de eigen bouwmachine van de gebruiker, nu mét direct
+> internet — `npm ci` haalt het `classList.js`-archief zonder omweg van GitHub. §1–§7 beschrijven de oude
+> gedeelde sandbox (proxy, 4 CPU) en blijven als geschiedenis staan.
 
 | # | Commando (repo-root) | Exit | Uitkomst | Duur |
 |---|---|---|---|---|
@@ -35,6 +38,9 @@ de repo (bv. `~/.venvs/jelly-leon-web`), want upstream-eslint lint `./` en negee
 eindcontrole (§6) is daarom met een venv buiten de repo gedraaid.
 
 ## 2. Bijzonderheid: GitHub-archief van `classlist.js` geblokkeerd in deze bouwomgeving
+
+> **Geschiedenis (oude sandbox).** Op de eigen bouwmachine (contractronde 1.2, §8) is het archief direct bereikbaar
+> en is deze omweg niet meer nodig; hij blijft hier alleen voor bouwomgevingen achter een proxy.
 
 `package-lock.json` haalt `classlist.js@1.2.20180112` op als `https://github.com/eligrey/classList.js/archive/1.2.20180112.tar.gz`
 (integriteit `sha512-5rjszPzc…r+1yBg==`). In deze bouwomgeving geeft de uitgaande proxy daarop **HTTP 403** (ook
@@ -192,3 +198,58 @@ server-ACL niet raakt. Het **DB-back-up-deel** van B03-013 (terugzetten van de s
   `npm ci` in Docker) loopt in deze bouwomgeving vast op de GitHub-archief-403 → followup voor `lvos04/jelly-leon`.
 - `upstream-sync.yml` is nog steeds niet op GitHub gedraaid (alleen vanaf de standaardbranch); de run-scripts zijn
   wel lokaal in bash getest.
+
+## 8. Contractronde 1.2 — JW3: opnieuw, op de eigen bouwmachine (2026-11-09)
+
+Omgeving: eigen Ubuntu 26.04.1-machine van de gebruiker (22 CPU's, 14 GiB RAM gedeeld met andere bouwers, Docker
+Engine 29.1.3), **direct internet zonder proxy of eigen CA**. Node **v22.23.4** uit de officiële tarball van
+nodejs.org (sha256 tegen `SHASUMS256.txt`), npm **10.9.9**, Python 3.12.16 (venv buiten de repo), Chromium
+153.0.8010.12 (Playwright 1.63.0). De systeem-npm (9.2.0) is niet gebruikt: die valt buiten `engines`
+(npm ≥ 9.6.4) en `.npmrc` zet `engine-strict=true`. Code: `2795f3365` (webbroncode = upstream v10.11.11). Zware
+stappen één voor één met `nice -n 10`. Samenvatting: `test-evidence/c12-jw3-lokale-bouw.json`.
+
+### 8.1 `classList.js`-archief (wat in de sandbox geblokkeerd was)
+
+- `curl -L https://github.com/eligrey/classList.js/archive/1.2.20180112.tar.gz` → HTTP 200 via
+  `codeload.github.com`, 6340 bytes; `sha512` = de integriteit in `package-lock.json` (`sha512-5rjszPzc…r+1yBg==`).
+- `npm ci` met een **lege** npm-cache (`--cache <nieuwe map>`, dus geen voorgeladen tarball):
+  `npm http fetch GET 200 https://codeload.github.com/eligrey/classList.js/tar.gz/refs/tags/1.2.20180112 (cache miss)`.
+
+De omweg uit §2 (`git archive` + `npm cache add`) is op deze machine dus niet meer nodig. De repo is niet aangepast.
+
+### 8.2 Volledige build en tests
+
+| Commando (repo-root) | Exit | Uitkomst | Duur |
+|---|---|---|---|
+| `npm ci --no-audit --no-fund --cache <lege map>` | 0 | 1724 pakketten, alles echt opgehaald; 10 upstream-`deprecated`-waarschuwingen | 18 s |
+| `npm run lint` | 0 | eslint 0 fouten, 103 upstream-waarschuwingen (gelijk aan P0) | 77 s |
+| `npm run stylelint` | 0 | 0 problemen | 2 s |
+| `npm run build:check` | 0 | `tsc --noEmit` 0 fouten | 7 s |
+| `npm test -- --maxWorkers=4` | 0 | vitest 12 bestanden, **160/160** | 2 s |
+| `npm run build:production` | 0 | webpack 5.99.9, 2 upstream-groottewaarschuwingen; `dist/` 2317 bestanden, ~60 MB | 77 s |
+| `npm run escheck` | 0 | geen ES-versiefouten | <5 s |
+| `check_fork_consistency.py` / `patch_register_check.py` / `workflow_check.py --overzicht` | 0 / 0 / 0 | basis v10.11.11, 0 core-patches, 9 upstream-workflows bewaakt | <1 s |
+| `pytest -q -c tools/jelly-leon-web/pytest.ini tools/jelly-leon-web/tests` | 0 | 50 geslaagd vóór de 1.2-commits, **68** erna (14 drifttests + 4 bewijsregeltests) | 8 s |
+| `actionlint` (beide eigen workflows, shellcheck 0.11.0) | 0 | geen meldingen | <1 s |
+| `web_smoke.py --modus fork --dist dist` | 0 | **30/30** (incl. herstart, terugzetten naar stock-web en weer vooruit) | 55 s |
+| `web_smoke.py --modus stock` | 0 | **24/24** (referentie, incl. herstart) | 55 s |
+| `contract_drift.py` (offline, `--bron-map ../ai-server-manager`, `--online`) | 0 | beide contractkopieën byte-gelijk aan `ai-server-manager@8b54f3940` | <2 s |
+
+Rapporten: `test-evidence/c12-web-smoke/web-smoke-{fork,stock}.json` (servers alleen op 127.0.0.1; wachtwoorden
+per run willekeurig en niet in het rapport). Validatie: **Sim-getest** — headless Chromium tegen de officiële
+serverimage op deze machine; geen echte tv/telefoon (D15) en geen NAS.
+
+### 8.3 Contract 1.2 in deze repo
+
+- Contractkopieën byte-gelijk met drifttest (A1) en strengere bewijsregels voor `EVIDENCE.json` (A4): ADR-0010.
+- JW1 (upgrade naar 12.x) hoort niet bij deze ronde; `git ls-remote --tags` toont upstream op deze datum
+  `v12.0`…`v12.4` (gelijk aan de peildatum van het contract).
+- JW2: geen merkwijziging in deze ronde; de smoketest bevestigt titel en `manifest.json` "Jellyfin".
+- CI op GitHub met de contract-1.2-commits: run
+  [42652520494](https://github.com/lvos04/jelly-leon-web/actions/runs/42652520494) op `c23ce1d77` **geslaagd**
+  (7/7 jobs; drifttest online "byte-gelijk aan ai-server-manager@8b54f3940"; tool-tests 67 geslaagd + 1 overgeslagen
+  — de vergelijking met een naastgelegen checkout bestaat alleen lokaal; `npm ci` 1724 pakketten met Node v22.23.4 /
+  npm 10.9.9; smoketest 30/30). GitHub meldde daarin dat `upload-artifact`/`download-artifact` v5.0.0 nog op het
+  afgeschafte Node 20 draaien → beide eigen workflows naar v7.0.2 / v8.0.2 (commit-SHA gecontroleerd met
+  `git ls-remote`).
+- Blijft open: echte apparaten (D15), echte NAS, een echte run van `upstream-sync.yml` op GitHub.

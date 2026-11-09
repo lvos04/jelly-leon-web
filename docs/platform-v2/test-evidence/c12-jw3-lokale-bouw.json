@@ -1,0 +1,114 @@
+{
+  "test": "JW3 (contract 1.2): npm ci met het classList.js-archief en de volledige build/tests opnieuw, lokaal",
+  "datum": "2026-11-09",
+  "omgeving": {
+    "machine": "eigen bouwmachine van de gebruiker: Ubuntu 26.04.1 LTS, kernel 7.0.0-42, 22 CPU's, 14 GiB RAM (gedeeld met andere bouwers), Docker Engine 29.1.3; direct internet, geen proxy en geen eigen CA",
+    "node": "v22.23.4 (officiële tarball van nodejs.org, sha256 gecontroleerd tegen SHASUMS256.txt; buiten de repo)",
+    "npm": "10.9.9 (bij Node 22.23.4; de systeem-npm 9.2.0 valt buiten engines npm >=9.6.4 en engine-strict=true)",
+    "python": "3.12.16 (venv buiten de repo, tools/jelly-leon-web/requirements-dev.txt)",
+    "browser": "Chromium 153.0.8010.12 headless (Playwright 1.63.0)",
+    "code": "commit 2795f3365 (webbroncode identiek aan upstream v10.11.11, 0 core-patches); de latere commits van deze ronde raken alleen fork-eigen paden",
+    "werkwijze": "zware stappen één voor één met nice -n 10"
+  },
+  "classlist_archief": {
+    "lockfile": {
+      "resolved": "https://github.com/eligrey/classList.js/archive/1.2.20180112.tar.gz",
+      "integrity": "sha512-5rjszPzcjFVoDEOarszcbax2WIGT3+fO+W212ZWg9+ylGJgxG1IIcCFjnnBbSdM0lNeIfmMGhhEGovIlr+1yBg=="
+    },
+    "curl": "HTTP 200 na doorverwijzing naar https://codeload.github.com/eligrey/classList.js/tar.gz/refs/tags/1.2.20180112, 6340 bytes, sha512 gelijk aan de lockfile",
+    "npm_ci_log": "npm http fetch GET 200 https://codeload.github.com/eligrey/classList.js/tar.gz/refs/tags/1.2.20180112 (cache miss)",
+    "conclusie": "In de oude sandbox gaf de proxy hierop HTTP 403 (BOUWVERIFICATIE_P0.md §2). Hier is het archief direct bereikbaar: geen omweg (npm cache add) meer nodig."
+  },
+  "stappen": [
+    {
+      "commando": "npm ci --no-audit --no-fund --cache <lege map> --loglevel=http",
+      "exit": 0,
+      "duur_s": 18,
+      "uitkomst": "1724 pakketten; lege npm-cache, dus alles echt opgehaald (1764 GET's), classlist.js van GitHub; 10 upstream-deprecated-waarschuwingen"
+    },
+    {
+      "commando": "npm run lint",
+      "exit": 0,
+      "duur_s": 77,
+      "uitkomst": "eslint: 0 fouten, 103 waarschuwingen (allemaal upstream, gelijk aan P0)"
+    },
+    {
+      "commando": "npm run stylelint",
+      "exit": 0,
+      "duur_s": 2,
+      "uitkomst": "0 problemen"
+    },
+    {
+      "commando": "npm run build:check",
+      "exit": 0,
+      "duur_s": 7,
+      "uitkomst": "tsc --noEmit: 0 fouten"
+    },
+    {
+      "commando": "npm test -- --maxWorkers=4",
+      "exit": 0,
+      "duur_s": 2,
+      "uitkomst": "vitest: 12 bestanden, 160/160 geslaagd"
+    },
+    {
+      "commando": "JELLYFIN_VERSION=<commit> npm run build:production",
+      "exit": 0,
+      "duur_s": 77,
+      "uitkomst": "webpack 5.99.9 'compiled with 2 warnings' (upstream-groottewaarschuwingen); dist/ 2317 bestanden, ~60 MB"
+    },
+    {
+      "commando": "npm run escheck",
+      "exit": 0,
+      "uitkomst": "ES-Check: there were no ES version matching errors!"
+    },
+    {
+      "commando": "python tools/jelly-leon-web/check_fork_consistency.py",
+      "exit": 0,
+      "uitkomst": "basis v10.11.11 (35c0793ece3a), forkversie 10.11.11-jl.0, technische identiteit jellyfin-web 10.11.11"
+    },
+    {
+      "commando": "python tools/jelly-leon-web/patch_register_check.py",
+      "exit": 0,
+      "uitkomst": "0 core-patches"
+    },
+    {
+      "commando": "python tools/jelly-leon-web/workflow_check.py --overzicht",
+      "exit": 0,
+      "uitkomst": "9 upstream-workflows (geheimen bewaakt), 2 eigen (vastgezet)"
+    },
+    {
+      "commando": "python -m pytest -q -c tools/jelly-leon-web/pytest.ini tools/jelly-leon-web/tests",
+      "exit": 0,
+      "uitkomst": "50 geslaagd vóór deze ronde; 68 geslaagd na de contract-1.2-commits (14 drifttests + 4 bewijsregeltests erbij)"
+    },
+    {
+      "commando": "actionlint .github/workflows/jelly-leon-web-ci.yml .github/workflows/upstream-sync.yml",
+      "exit": 0,
+      "uitkomst": "geen meldingen, met shellcheck 0.11.0"
+    },
+    {
+      "commando": "python tools/jelly-leon-web/e2e/web_smoke.py --modus fork --dist dist --uitvoer <map>",
+      "exit": 0,
+      "duur_s": 55,
+      "uitkomst": "30/30 (incl. herstart, terugzetten naar de stock-webclient en weer vooruit) tegen docker.io/jellyfin/jellyfin:10.11.11@sha256:aefb67e6…; rapport c12-web-smoke/web-smoke-fork.json"
+    },
+    {
+      "commando": "python tools/jelly-leon-web/e2e/web_smoke.py --modus stock --uitvoer <map>",
+      "exit": 0,
+      "duur_s": 55,
+      "uitkomst": "24/24 (referentie: webclient uit de officiële image, incl. herstart); rapport c12-web-smoke/web-smoke-stock.json"
+    },
+    {
+      "commando": "python tools/jelly-leon-web/contract_drift.py [--bron-map ../ai-server-manager | --online]",
+      "exit": 0,
+      "uitkomst": "contractkopieën byte-gelijk aan lvos04/ai-server-manager@8b54f3940 (offline, lokale bron en online)"
+    }
+  ],
+  "validatie": "Sim-getest (headless Chromium + officiële serverimage op deze machine; geen echte apparaten, geen NAS)",
+  "niet_gedaan": [
+    "Echte tv's/telefoons/Chromecast, ondertitels en video-transcoding: NIET GEVALIDEERD (hardware, D15).",
+    "Installatie op een echte TrueNAS (via de jelly-leon-image): NIET GEVALIDEERD (echte NAS).",
+    "JW1 (upgrade naar 12.x) hoort niet bij deze ronde; upstream toont op deze datum v12.0…v12.4 (git ls-remote).",
+    "upstream-sync.yml is nog steeds niet op GitHub gedraaid (alleen vanaf de standaardbranch)."
+  ]
+}

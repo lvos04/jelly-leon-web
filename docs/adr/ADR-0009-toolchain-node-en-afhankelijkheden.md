@@ -15,6 +15,9 @@
   prioriteit voor runtime-afhankelijkheden: `swiper`, `dompurify`, `react-router-dom`, `pdfjs-dist`, `markdown-it`).
 - Bouwomgevingen zonder toegang tot GitHub-archieven: de lokale werkwijze in `BOUWVERIFICATIE_P0.md` §2 (zelfde sha512
   als `package-lock.json`); geen wijziging in de repo.
+  Contractronde 1.2 (JW3): op de eigen bouwmachine met direct internet is het archief bereikbaar en werkt `npm ci`
+  zonder omweg, ook met een lege npm-cache (`BOUWVERIFICATIE_P0.md` §8). Lokaal hoort daar Node 22.23.4 met npm
+  10.9.x bij: een systeem-npm < 9.6.4 valt buiten `engines` en wordt door `engine-strict=true` geweigerd.
 
 ## Gevolgen
 

@@ -23,13 +23,14 @@
    De kopieën worden hier nooit bewerkt; hun relatieve links (`../adr/ADR-0011-…`, `../adr/ADR-0012-…`) verwijzen naar
    `ai-server-manager` en werken in deze repo niet (byte-gelijkheid gaat voor).
 2. **A2 — attributie.** Commits eindigen met de attributieregel van de lopende sessie; geen sessielink (§12).
-3. **A3 — scan vóór publiek maken.** Alleen gelezen en gemeld, niets publiek gemaakt (besluit 3 is van de gebruiker):
-   de fork-eigen commits (`245239f61`, `3363f135e`, `94d2fd06e` en `6fde14bf6..HEAD` zonder de upstream-merge) zijn
-   doorzocht op privé-LAN-adressen, thuismappen, sleutels/tokens en e-mailadressen. Bevindingen voor de gebruiker:
-   geen echte geheimen of LAN-adressen; wel een **nep-token** met GitHub-voorvoegsel in
-   `tools/jelly-leon-web/tests/test_sync_workflow.py` (`ghp_dummy…`, testwaarde voor de redactiecontrole) dat
-   geheimscanners bij publiek maken kunnen melden, en alleen `example.invalid`/`noreply`-adressen. De
-   upstream-historie van jellyfin-web is al publiek.
+3. **A3 — scan van de historie.** De repo staat op 2026-11-09 al **publiek** op GitHub (gemeten met
+   `gh repo view`); de scan is dus een controle achteraf, alleen gelezen en gemeld, niets herschreven (geen
+   force-push). Doorzocht: de fork-eigen commits (`245239f61`, `3363f135e`, `94d2fd06e` en `6fde14bf6..HEAD` zonder
+   de upstream-merge) op privé-LAN-adressen, thuismappen, sleutels/tokens en e-mailadressen. Bevindingen voor de
+   gebruiker: geen echte geheimen, LAN-adressen of thuismappen; wel een **nep-token** met GitHub-voorvoegsel en
+   PAT-lengte in `tools/jelly-leon-web/tests/test_sync_workflow.py` (`ghp_dummy…`, testwaarde voor de
+   redactiecontrole), dat geheimscanners kunnen melden; verder alleen `example.invalid`/`noreply`-adressen. De
+   upstream-historie van jellyfin-web is van zichzelf publiek.
 4. **A4 — EVIDENCE.json streng volgens §11.** `check_fork_consistency.py` (CI-stap *forkregels*) eist nu: precies de
    velden van §11; `validatie` alleen waarden uit de vaste lijst, meerdere gescheiden door `"; "`, geen dubbele en
    geen vrije tekst (die hoort in `opmerking`); `Sim-geslaagd`/`Sim-mislukt` alleen voor de testmatrix (EX..);

@@ -25,3 +25,8 @@
 - Gemeld als contract-issue (generieke "image per repo"-eis ↔ §2 "jelly-leon(+web)").
 - Followup voor `lvos04/jelly-leon`: de web-stage kan het CI-artefact gebruiken i.p.v. zelf `npm ci` te draaien
   (lost ook de GitHub-archief-403 in beperkte bouwomgevingen op).
+- Stand contractronde 1.2: volgens `lvos04/jelly-leon` (`docs/adr/ADR-0008-alles-in-een-image.md`, "P0-afronding")
+  is de volledige jelly-leon-image daar inmiddels lokaal gebouwd **mét** de echte web-build van deze repo (commit
+  `2795f3365`, `npm ci` incl. het `classList.js`-archief); in hun GitHub-CI wordt de web-stage nog vervangen door de
+  upstream-dist. Deze repo staat inmiddels publiek op GitHub, dus de web-stage kan daar zonder leestoken een
+  `git archive` van deze repo gebruiken (followup voor `lvos04/jelly-leon`, niet in deze repo).
