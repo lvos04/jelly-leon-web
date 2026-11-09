@@ -497,12 +497,28 @@ def shot(page, out: Path | None, name: str, kind: str) -> str:
     return path.name
 
 
-def new_context(browser, layout: str, **kwargs):
-    """Browsercontext in de gevraagde layout; Legacy via de upstream-instelling `layout` in localStorage."""
+PLAYBACK_REPORTS_GLOB = "**/Sessions/Playing**"
+
+
+def new_context(browser, layout: str, block_playback_reports: bool = False, on_report=None, **kwargs):
+    """Browsercontext in de gevraagde layout; Legacy via de upstream-instelling `layout` in localStorage.
+
+    block_playback_reports=True onderschept de afspeelmeldingen van de webclient (POST /Sessions/Playing,
+    …/Progress, …/Stopped) en beantwoordt ze met 204 zonder ze naar de server te sturen. Zo wijzigt een proef die de
+    kijkgegevens vóór/na vergelijkt (upgradeproef) die gegevens niet zelf door af te spelen (PlayCount,
+    LastPlayedDate, hervatpunt). on_report(request) krijgt elke onderschepte melding.
+    """
     context = browser.new_context(locale="nl-NL", **kwargs)
     setting = LAYOUTS[layout]
     if setting:
         context.add_init_script(f"window.localStorage.setItem('layout', {json.dumps(setting)});")
+    if block_playback_reports:
+        def intercept(route) -> None:
+            if on_report is not None:
+                on_report(route.request)
+            route.fulfill(status=204, body="")
+
+        context.route(PLAYBACK_REPORTS_GLOB, intercept)
     return context
 
 
@@ -528,7 +544,8 @@ def web_identity_check(api: Api, ids: dict, expected_version: str, storage_keys:
 
 
 def ui_phase(base: str, args: argparse.Namespace, report: Report, creds: dict, ids: dict,
-             layout: str = "modern", api: Api | None = None) -> None:
+             layout: str = "modern", api: Api | None = None, block_playback_reports: bool = False) -> None:
+    """Gebruikersreizen in een echte browser. block_playback_reports: zie new_context (upgradeproef)."""
     from playwright.sync_api import Error as PlaywrightError
     from playwright.sync_api import sync_playwright
 
@@ -541,7 +558,8 @@ def ui_phase(base: str, args: argparse.Namespace, report: Report, creds: dict, i
         browser = pw.chromium.launch(**launch)
         report.facts["browser"] = f"Chromium {browser.version} (headless)"
         try:
-            context = new_context(browser, layout, viewport={"width": 1440, "height": 900})
+            context = new_context(browser, layout, viewport={"width": 1440, "height": 900},
+                                  block_playback_reports=block_playback_reports)
             page = context.new_page()
             page.set_default_timeout(30000)
 
@@ -605,7 +623,8 @@ def ui_phase(base: str, args: argparse.Namespace, report: Report, creds: dict, i
                        f"GET /Audio/<id>/… → HTTP {stream_status} (verwacht 200/206)")
             context.close()
 
-            kid_context = new_context(browser, layout, viewport={"width": 1440, "height": 900})
+            kid_context = new_context(browser, layout, viewport={"width": 1440, "height": 900},
+                                      block_playback_reports=block_playback_reports)
             kid_page = kid_context.new_page()
             kid_page.set_default_timeout(30000)
             ui_login(kid_page, base, creds["kid_user"], creds["kid_password"])
@@ -624,7 +643,8 @@ def ui_phase(base: str, args: argparse.Namespace, report: Report, creds: dict, i
             for width, height in VIEWPORTS:
                 mobile = width < 768
                 ctx = new_context(browser, layout, viewport={"width": width, "height": height},
-                                  is_mobile=mobile, has_touch=mobile, storage_state=state)
+                                  is_mobile=mobile, has_touch=mobile, storage_state=state,
+                                  block_playback_reports=block_playback_reports)
                 vpage = ctx.new_page()
                 vpage.set_default_timeout(30000)
                 vpage.goto(f"{base}/web/#/home", wait_until="domcontentloaded")

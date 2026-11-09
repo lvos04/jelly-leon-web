@@ -14,7 +14,8 @@ daarna in beide layouts werkt:
      een mislukte stap (geen stil verlies; een verklaard verschil zou akkoord van de gebruiker vragen, §10.9);
   4. browser (fork-build) in Modern en Legacy op de gemigreerde data: inloggen met hetzelfde wachtwoord, zoeken,
      detailpagina, afspelen, kinderprofiel ziet niets (stappen uit web_smoke.py), en de gast krijgt op de detailpagina
-     "Hervatten" aangeboden (hervatpunt bewaard);
+     "Hervatten" aangeboden (hervatpunt bewaard) en hervat na een klik op het juiste punt (de webclient meldt de start
+     met PositionTicks = het hervatpunt, JLT-60 "clients hervatten op het juiste punt");
   5. terugzetten (JLT-61 a): oude image + de kopie van vóór de migratie → jellyfin.db byte-gelijk aan vóór, gezond,
      kijkgegevens = VÓÓR, stream 200;
   6. negatieve proef (JLT-61 b): alleen de oude image op de gemigreerde /config. De acceptatie eist "faalt zichtbaar
@@ -203,29 +204,78 @@ def expected_present(snap: dict, report: Report, label: str) -> None:
                f"beheerder {admin}; gast hervatpunt {guest.get('PlaybackPositionTicks')} ticks; voorkeuren {prefs}")
 
 
+def is_playback_start(method: str, url: str) -> bool:
+    """POST /Sessions/Playing = reportPlaybackStart van de webclient (niet …/Progress of …/Stopped)."""
+    return method == "POST" and urllib.parse.urlsplit(url).path.rstrip("/").endswith("/Sessions/Playing")
+
+
+def start_position_ok(start_ticks: object, expected_ticks: int) -> bool:
+    """De webclient begint op het bewaarde hervatpunt (marge 0,25 s voor afronding van currentTime), niet bij 0."""
+    if isinstance(start_ticks, bool) or not isinstance(start_ticks, (int, float)):
+        return False
+    return abs(start_ticks - expected_ticks) <= TICKS_PER_SECOND // 4
+
+
 def resume_check(base: str, args: argparse.Namespace, report: Report, creds: dict, ids: dict, layout: str) -> None:
-    """De gast krijgt na de upgrade op de detailpagina "Hervatten" (btnReplay zichtbaar, afspeelknop = Hervatten)."""
+    """De gast krijgt na de upgrade op de detailpagina "Hervatten" en de webclient hervat op het juiste punt.
+
+    JLT-60 eist "clients hervatten op het juiste punt": na een klik op Hervatten meldt de webclient de start van het
+    afspelen (POST /Sessions/Playing) met PositionTicks = het bewaarde hervatpunt (1 s), niet 0. De afspeelmeldingen
+    worden onderschept en niet naar de server gestuurd (web_smoke.new_context): de proef zelf verandert zo de
+    kijkgegevens niet, en de tweede layout en de negatieve proef zien nog exact de stand van VÓÓR.
+    """
     from playwright.sync_api import Error as PlaywrightError
     from playwright.sync_api import sync_playwright
 
     tag = f"[{layout.capitalize()}]"
+    expected = GUEST_DATA["PlaybackPositionTicks"]
+    starts: list[object] = []
+
+    def on_report(request) -> None:
+        if is_playback_start(request.method, request.url):
+            try:
+                starts.append(request.post_data_json)
+            except (ValueError, TypeError):
+                starts.append(None)
+
     with sync_playwright() as pw:
         browser = pw.chromium.launch(**({"executable_path": args.chromium} if args.chromium else {}))
         try:
-            context = web_smoke.new_context(browser, layout, viewport={"width": 1440, "height": 900})
+            context = web_smoke.new_context(browser, layout, viewport={"width": 1440, "height": 900},
+                                            block_playback_reports=True, on_report=on_report)
             page = context.new_page()
             page.set_default_timeout(30000)
             web_smoke.ui_login(page, base, GUEST, creds["guest_password"])
             page.wait_for_selector("#indexPage:not(.hide)", timeout=60000)
             page.goto(f"{base}/web/#/details?id={ids['item_id']}&serverId={ids['server_id']}", wait_until="domcontentloaded")
+            play = page.locator("button.btnPlay:not(.hide)").first
             try:
                 page.locator("button.btnReplay:not(.hide)").first.wait_for(state="visible", timeout=30000)
-                title = page.locator("button.btnPlay:not(.hide)").first.get_attribute("title")
+                title = play.get_attribute("title")
                 ok = title == "Hervatten"
             except PlaywrightError as exc:
                 title, ok = f"fout: {str(exc).splitlines()[0][:120]}", False
             report.add(f"{tag} gast krijgt 'Hervatten' op de detailpagina (hervatpunt bewaard)", ok,
                        f"knop 'opnieuw afspelen' zichtbaar; afspeelknop-titel {title!r} (verwacht 'Hervatten')")
+
+            start_ticks: object = None
+            detail = ""
+            if ok:
+                try:
+                    play.click()
+                    deadline = time.monotonic() + 30
+                    while not starts and time.monotonic() < deadline:
+                        page.wait_for_timeout(250)
+                    body = starts[0] if starts else None
+                    start_ticks = body.get("PositionTicks") if isinstance(body, dict) else None
+                    if not starts:
+                        detail = "; geen afspeelstart gemeld binnen 30 s"
+                except PlaywrightError as exc:
+                    detail = f"; fout: {str(exc).splitlines()[0][:120]}"
+            report.add(f"{tag} gast hervat op het juiste punt (webclient start op het hervatpunt)",
+                       start_position_ok(start_ticks, expected),
+                       f"POST /Sessions/Playing PositionTicks={start_ticks!r} (verwacht {expected} ± "
+                       f"{TICKS_PER_SECOND // 4}){detail}")
             context.close()
         finally:
             browser.close()
@@ -351,7 +401,10 @@ def run(args: argparse.Namespace) -> tuple[Report, dict, int]:
         ui_ids = dict(ids, token=token, server_id=auth.get("ServerId", ids["server_id"]))
         for layout in args.layouts:
             try:
-                web_smoke.ui_phase(base, new, report, creds, ui_ids, layout=layout, api=api)
+                # Afspeelmeldingen onderscheppen: afspelen in de browserproef mag de kijkgegevens niet veranderen,
+                # anders vergelijkt de negatieve proef hierna niet meer met VÓÓR (zie web_smoke.new_context).
+                web_smoke.ui_phase(base, new, report, creds, ui_ids, layout=layout, api=api,
+                                   block_playback_reports=True)
             except Exception as exc:  # noqa: BLE001 - elke browserfout is een mislukte stap
                 report.add(f"[{layout}] browserdeel zonder onverwachte fout", False, f"{type(exc).__name__}: {exc}"[:300])
 

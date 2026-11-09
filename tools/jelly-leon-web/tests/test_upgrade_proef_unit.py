@@ -152,3 +152,72 @@ def test_negative_phase_modes(monkeypatch, verwacht, oud_gezond, oud_aanmelden, 
     assert rep.passed is geslaagd
     assert extra["jlt61b"].startswith(oordeel)
     assert ("MET schade" in extra["jlt61b"]) is schade
+
+
+@pytest.mark.parametrize(
+    "method, url, expected",
+    [
+        ("POST", "http://127.0.0.1:1/Sessions/Playing", True),
+        ("POST", "http://127.0.0.1:1/Sessions/Playing?x=1", True),
+        ("POST", "http://127.0.0.1:1/Sessions/Playing/Progress", False),   # voortgang is geen start
+        ("POST", "http://127.0.0.1:1/Sessions/Playing/Stopped", False),
+        ("GET", "http://127.0.0.1:1/Sessions/Playing", False),
+    ],
+)
+def test_is_playback_start(method, url, expected):
+    assert upgrade_proef.is_playback_start(method, url) is expected
+
+
+@pytest.mark.parametrize(
+    "ticks, expected",
+    [
+        (10_000_000, True),          # precies het hervatpunt (1 s)
+        (10_002_000, True),          # afronding van currentTime
+        (0, False),                  # begint vooraan: hervatpunt genegeerd (JLT-60 negatief)
+        (None, False),               # geen melding
+        (True, False),               # geen getal
+        (40_000_000, False),         # verkeerd punt
+    ],
+)
+def test_start_position_ok(ticks, expected):
+    assert upgrade_proef.start_position_ok(ticks, upgrade_proef.GUEST_DATA["PlaybackPositionTicks"]) is expected
+
+
+def test_playback_reports_can_be_intercepted_without_reaching_the_server():
+    """De upgradeproef verandert de kijkgegevens niet zelf: afspeelmeldingen krijgen 204 en gaan niet naar de server."""
+
+    class Route:
+        def __init__(self, request):
+            self.request, self.fulfilled = request, None
+
+        def fulfill(self, **kwargs):
+            self.fulfilled = kwargs
+
+        def continue_(self):  # pragma: no cover - mag nooit gebeuren
+            raise AssertionError("melding doorgestuurd naar de server")
+
+    class Context:
+        def __init__(self):
+            self.routes, self.scripts = [], []
+
+        def add_init_script(self, script):
+            self.scripts.append(script)
+
+        def route(self, pattern, handler):
+            self.routes.append((pattern, handler))
+
+    class Browser:
+        def new_context(self, **kwargs):
+            assert kwargs["locale"] == "nl-NL"
+            return Context()
+
+    seen = []
+    plain = web_smoke.new_context(Browser(), "modern")
+    assert plain.routes == []                                   # standaard (smoketest): niets onderschept
+    ctx = web_smoke.new_context(Browser(), "legacy", block_playback_reports=True, on_report=seen.append)
+    assert ctx.scripts and "desktop-legacy" in ctx.scripts[0]
+    [(pattern, handler)] = ctx.routes
+    assert pattern == web_smoke.PLAYBACK_REPORTS_GLOB
+    route = Route(request="POST /Sessions/Playing")
+    handler(route)
+    assert seen == ["POST /Sessions/Playing"] and route.fulfilled == {"status": 204, "body": ""}
