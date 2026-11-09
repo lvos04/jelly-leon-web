@@ -7,7 +7,7 @@ from pathlib import Path
 
 import check_fork_consistency
 import patch_register_check
-from conftest import EMPTY_PATCHES, commit_all, git, package_json, write
+from conftest import EMPTY_PATCHES, REPO_ROOT, commit_all, git, package_json, write
 
 
 def test_registered_core_patch_is_accepted(repos):
@@ -141,6 +141,72 @@ def test_evidence_rules(repos):
     assert "id 'B3-1' is geen Excel-ID" in joined
     assert "validatie 'werkt'" in joined
     assert "repo moet 'jelly-leon-web' zijn" in joined
+
+
+def test_evidence_validatie_exact_volgens_section_11_contract_1_2(repos):
+    """A4: alleen waarden uit de vaste lijst, gescheiden door '; '; toelichting hoort in 'opmerking'."""
+    fork: Path = repos["fork"]
+    good = [
+        dict(EVIDENCE_OK, id="B03-001", validatie="Sim-getest; NIET GEVALIDEERD (hardware)"),
+        dict(EVIDENCE_OK, id="B03-013", validatie="Unit-getest; Sim-getest; NIET GEVALIDEERD (echte NAS)"),
+        dict(EVIDENCE_OK, id="EX48", validatie="Sim-geslaagd"),
+        dict(EVIDENCE_OK, id="EX49", validatie="Sim-mislukt; NIET GEVALIDEERD (echte NAS)"),
+        dict(EVIDENCE_OK, id="D15", status="Open", validatie="NIET GEVALIDEERD (hardware)"),
+    ]
+    write(fork, "docs/platform-v2/EVIDENCE.json", json.dumps(good))
+    assert check_fork_consistency.check_evidence(fork) == []
+
+    bad = {
+        "B03-002": "Sim-getest (headless Chromium)",      # vrije tekst achter een geldige waarde
+        "B03-003": "NIET GEVALIDEERD",                     # zonder reden uit de lijst
+        "B03-004": "Sim-getest;NIET GEVALIDEERD (hardware)",  # verkeerd scheidingsteken
+        "B03-005": "Sim-getest; Sim-getest",               # dubbel
+        "B03-006": "Sim-geslaagd",                         # alleen voor de testmatrix (EX..)
+        "B03-007": "",                                     # leeg
+        "B03-008": "Sim-getest; ",                         # lege tweede waarde
+    }
+    write(fork, "docs/platform-v2/EVIDENCE.json",
+          json.dumps([dict(EVIDENCE_OK, id=key, validatie=value) for key, value in bad.items()]))
+    errors = check_fork_consistency.check_evidence(fork)
+    for key in bad:
+        assert any(f"[{key}]" in e and "validatie" in e for e in errors), key
+    assert any("[B03-002]: validatie 'Sim-getest (headless Chromium)' is geen toegestane waarde" in e for e in errors)
+    assert any("[B03-005]" in e and "dubbel" in e for e in errors)
+    assert any("[B03-007]: validatie ontbreekt" in e for e in errors)
+
+
+def test_evidence_alleen_velden_uit_section_11_en_bewijs_verplicht(repos):
+    fork: Path = repos["fork"]
+    write(fork, "docs/platform-v2/EVIDENCE.json",
+          json.dumps([dict(EVIDENCE_OK, toelichting="hoort in opmerking"), dict(EVIDENCE_OK, id="B03-002", bewijs=" ")]))
+    joined = "\n".join(check_fork_consistency.check_evidence(fork))
+    assert "velden toelichting horen niet bij §11" in joined
+    assert "[B03-002]: bewijs is leeg" in joined
+
+
+def test_evidence_genoemde_commits_bestaan_echt(repos):
+    """Eerlijkheid: een commit in 'bewijs' die niet bestaat, faalt; digests, run-ID's en <repo>@<sha> tellen niet."""
+    fork: Path = repos["fork"]
+    head = git(fork, "rev-parse", "--short=9", "HEAD")
+    full = git(fork, "rev-parse", "HEAD")
+    ok = (f"commits {head}, {full}; image jellyfin:10.11.11@sha256:aefb67e6a7ff; integriteit sha512-5rjszPzcabcdef1; "
+          "GitHub Actions run 42610233474; serverdeel jelly-leon@d4bc20d6a; https://example.invalid/x/abcdef12345")
+    write(fork, "docs/platform-v2/EVIDENCE.json", json.dumps([dict(EVIDENCE_OK, bewijs=ok)]))
+    assert check_fork_consistency.check_evidence(fork) == []
+
+    write(fork, "docs/platform-v2/EVIDENCE.json", json.dumps([dict(EVIDENCE_OK, bewijs=f"commits {head}, deadbeef42")]))
+    errors = check_fork_consistency.check_evidence(fork)
+    assert errors == [
+        "docs/platform-v2/EVIDENCE.json[B03-001]: commit deadbeef42 uit 'bewijs' bestaat niet in deze repo "
+        "(andere repo? schrijf <repo>@deadbeef42)"
+    ]
+
+
+def test_evidence_van_deze_repo_volgt_section_11():
+    """De echte docs/platform-v2/EVIDENCE.json (zelfde controle als de CI-stap check_fork_consistency.py)."""
+    assert check_fork_consistency.check_evidence(REPO_ROOT) == []
+    items = json.loads((REPO_ROOT / "docs/platform-v2/EVIDENCE.json").read_text(encoding="utf-8"))
+    assert items and all(item["status"] not in {"Gereed", "Geslaagd"} for item in items)
 
 
 def test_evidence_must_be_list(repos):

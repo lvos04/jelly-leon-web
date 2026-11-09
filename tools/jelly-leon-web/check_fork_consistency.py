@@ -7,8 +7,10 @@ Controles:
     (stock clients, plugins en de server zien de webclient als Jellyfin Web; alleen de zichtbare naam mag later
     "Jelly Leon" worden);
   * lokale tag upstream-<tag> (als die bestaat) wijst naar dezelfde upstream-commit;
-  * docs/platform-v2/EVIDENCE.json volgt contract §11: geldige statussen, nooit "Gereed"/"Geslaagd" in deze
-    bouwomgeving, verplichte velden, repo = jelly-leon-web.
+  * docs/platform-v2/EVIDENCE.json volgt contract §11 (1.2, conformiteitspunt A4): precies de velden uit §11,
+    geldige statussen, nooit "Gereed"/"Geslaagd" in deze bouwomgeving, `validatie` alleen waarden uit de vaste lijst
+    (meerdere gescheiden door "; ", toelichting hoort in `opmerking`), repo = jelly-leon-web, en elke commit die in
+    `bewijs` genoemd wordt bestaat echt in deze repo (commits van andere repos schrijf je als `<repo>@<sha>`).
 
 Exitcodes: 0 = in orde, 1 = overtreding, 3 = gebruiks-/omgevingsfout.
 """
@@ -44,17 +46,21 @@ STATUS_WERKPAKKET = {"Niet gestart", "Bezig", "Gereed", "Geblokkeerd", "N.v.t."}
 STATUS_TEST = {"Niet gestart", "Bezig", "Geslaagd", "Mislukt", "Geblokkeerd", "N.v.t."}
 STATUS_BESLUIT = {"Open", "Ingevuld", "Getest", "Geblokkeerd", "N.v.t."}
 FORBIDDEN_STATUSES = {"Gereed", "Geslaagd", "Getest", "Ingevuld"}
-VALIDATIE_PREFIXES = (
+# §11 (1.2): vaste lijst; meerdere waarden gescheiden door "; ". De testmatrix (EX01–EX50) zet het
+# simulatorresultaat in `validatie` ("Sim-geslaagd"/"Sim-mislukt").
+VALIDATIE_WAARDEN = (
     "Sim-getest",
     "Unit-getest",
-    "Sim-geslaagd",
-    "Sim-mislukt",
     "NIET GEVALIDEERD (echte NAS)",
     "NIET GEVALIDEERD (hardware)",
     "NIET GEVALIDEERD (account)",
     "NIET GEVALIDEERD (Mac/Xcode)",
-    "NIET GEVALIDEERD",
 )
+VALIDATIE_TESTMATRIX = ("Sim-geslaagd", "Sim-mislukt")
+VALIDATIE_SEP = "; "
+# Hexadecimale commit-verwijzing in `bewijs`; niet na ":" "-" "@" "/" (digests als sha256:…, sha512-…, <repo>@<sha>,
+# URL-paden) en niet alleen cijfers (run-ID's van GitHub Actions).
+COMMIT_REF_RE = re.compile(r"(?<![0-9A-Za-z:@/\-])([0-9a-f]{7,40})(?![0-9A-Za-z])")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 ID_RE = re.compile(r"^(B\d{2}-\d{3}|I\d{2}-\d{2}-\d{2}|A\d{2}(-\d+)?|APP-\d{2}|EX\d{2}|D\d{2})$")
 
@@ -129,6 +135,9 @@ def check_evidence(repo: Path) -> list[str]:
         for key in EVIDENCE_FIELDS:
             if key not in entry or not isinstance(entry[key], str):
                 errors.append(f"{where}: veld '{key}' ontbreekt of is geen tekst")
+        extra = sorted(set(entry) - set(EVIDENCE_FIELDS))
+        if extra:
+            errors.append(f"{where}: velden {', '.join(extra)} horen niet bij §11")
         entry_id = str(entry.get("id", ""))
         where = f"{EVIDENCE_REL}[{entry_id or index}]"
         if not ID_RE.match(entry_id):
@@ -144,15 +153,46 @@ def check_evidence(repo: Path) -> list[str]:
             errors.append(f"{where}: status '{status}' niet toegestaan (kies uit {', '.join(sorted(allowed))})")
         if status in FORBIDDEN_STATUSES:
             errors.append(f"{where}: status '{status}' vraagt echte acceptatie op de NAS en wordt hier nooit gezet")
-        validatie = entry.get("validatie", "")
-        if not any(validatie.startswith(prefix) for prefix in VALIDATIE_PREFIXES):
-            errors.append(f"{where}: validatie '{validatie}' is geen toegestane waarde (contract §11)")
+        errors.extend(check_validatie(where, entry_id, entry.get("validatie", "")))
         if status == "Geblokkeerd" and not entry.get("blokkade"):
             errors.append(f"{where}: status Geblokkeerd zonder blokkade-reden")
         if entry.get("repo") != REPO_NAME:
             errors.append(f"{where}: repo moet '{REPO_NAME}' zijn")
         if not DATE_RE.match(str(entry.get("bijgewerkt", ""))):
             errors.append(f"{where}: bijgewerkt moet JJJJ-MM-DD zijn")
+        if not str(entry.get("bewijs", "")).strip():
+            errors.append(f"{where}: bewijs is leeg")
+        errors.extend(check_commit_refs(repo, where, str(entry.get("bewijs", ""))))
+    return errors
+
+
+def check_validatie(where: str, entry_id: str, validatie: object) -> list[str]:
+    """§11: alleen waarden uit de vaste lijst, gescheiden door "; ", geen dubbele, geen vrije tekst."""
+    if not isinstance(validatie, str) or not validatie:
+        return [f"{where}: validatie ontbreekt (contract §11)"]
+    allowed = VALIDATIE_WAARDEN + (VALIDATIE_TESTMATRIX if entry_id.startswith("EX") else ())
+    parts = validatie.split(VALIDATIE_SEP)
+    errors = [
+        f"{where}: validatie '{part}' is geen toegestane waarde (contract §11; kies uit {' | '.join(allowed)}; "
+        "meerdere met '; ', toelichting in 'opmerking')"
+        for part in parts
+        if part not in allowed
+    ]
+    if len(set(parts)) != len(parts):
+        errors.append(f"{where}: validatie '{validatie}' bevat een waarde dubbel")
+    return errors
+
+
+def check_commit_refs(repo: Path, where: str, bewijs: str) -> list[str]:
+    """Elke in `bewijs` genoemde commit (hex, 7–40 tekens) bestaat in deze repo — geen bewijs dat niet bestaat."""
+    errors: list[str] = []
+    for ref in dict.fromkeys(COMMIT_REF_RE.findall(bewijs)):
+        if ref.isdigit():
+            continue
+        if run_git(repo, "cat-file", "-e", f"{ref}^{{commit}}", check=False).returncode != 0:
+            errors.append(
+                f"{where}: commit {ref} uit 'bewijs' bestaat niet in deze repo (andere repo? schrijf <repo>@{ref})"
+            )
     return errors
 
 
