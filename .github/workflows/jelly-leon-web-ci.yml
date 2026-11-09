@@ -37,6 +37,8 @@ concurrency:
 env:
   # Officiële upstream-server van dezelfde versie als de basis (v12.4), op digest vastgezet (= toolchain.server_image).
   JLW_SERVER_IMAGE: docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771
+  # Vorige basis (10.11.11) voor de upgradeproef met behoud van kijkgegevens (JLT-60/61 webdeel).
+  JLW_OUDE_SERVER_IMAGE: docker.io/jellyfin/jellyfin:10.11.11@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db
 
 jobs:
   forkregels:
@@ -247,3 +249,59 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
           path: ${{ runner.temp }}/e2e/
+
+  upgrade-e2e:
+    name: Upgradeproef 10.11.11 → 12.4 met behoud van kijkgegevens (simulator)
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Artefact ophalen
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: jelly-leon-web-dist
+          path: ${{ runner.temp }}/artefact
+
+      - name: Artefact controleren en uitpakken
+        env:
+          ARTEFACT: ${{ needs.build.outputs.artefact }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/artefact"
+          sha256sum -c "$ARTEFACT.tar.gz.sha256"
+          mkdir -p "$GITHUB_WORKSPACE/dist"
+          tar -xzf "$ARTEFACT.tar.gz" -C "$GITHUB_WORKSPACE/dist"
+          test -f "$GITHUB_WORKSPACE/dist/index.html"
+
+      - name: Python 3.12
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: '3.12'
+
+      - name: Playwright + Chromium
+        run: |
+          python -m pip install --disable-pip-version-check -r tools/jelly-leon-web/requirements-dev.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Serverimages ophalen (oud en nieuw, digest-gepind)
+        run: |
+          docker pull "$JLW_OUDE_SERVER_IMAGE"
+          docker pull "$JLW_SERVER_IMAGE"
+
+      - name: Upgradeproef (VÓÓR = NA per gebruiker, browser Modern + Legacy, negatieve proef, terugzetten)
+        run: >
+          python tools/jelly-leon-web/e2e/upgrade_proef.py --dist dist --oude-image "$JLW_OUDE_SERVER_IMAGE"
+          --image "$JLW_SERVER_IMAGE" --layouts modern,legacy --uitvoer "$RUNNER_TEMP/upgrade"
+
+      - name: Rapport bewaren
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: upgrade-proef
+          retention-days: 14
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/upgrade/
