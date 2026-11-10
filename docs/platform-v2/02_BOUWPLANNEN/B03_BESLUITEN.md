@@ -494,3 +494,17 @@ worden voorbeeldwaarden als echte waarden gebruikt.
 | F5 Apparaten | O1, O9 → BG-26 · O2, O6 → BG-29 · O3, O11 → BG-27 · O4, O13 → BG-28 · O5, O10 → §9 · O8 → BG-30 · O12 → BG-07 (O7 vervallen) |
 | F6 Intro/outro | B1, B2, B9 → BG-32 · B3, B4, B11 → BG-31 · B5, B6 → BG-33 · B7 → BG-08 · B8 → BG-34 · B10 → BG-35 · B12 → BG-36 · B13 → BG-38 |
 | Analyses A1–A5 | opslag NL-ondertitels → BG-19 · extern Watch Together → BG-09 · Modern/Legacy → BG-14 · release/P4-0 → BG-02 · legacy-auth MediaGuard → BG-01 · knopteksten → BG-31 · Android TV/Swiftfin → BG-10, BG-08 · startschermrij → BG-15 · Intro Skipper/databases → BG-32 · LLM-licenties → BG-18 · Δ-MG-1/2 → BG-05 · MediaGuard-sleutel → BG-04 · embeddings/ASR → BG-06 · ondertiteldownloaders → BG-22 · groepsrechten, cache, Android-images → BG-38 · Netflix, Pioneer One → BG-37 · D07/D08/D15 → §9 |
+
+## Besluiten van de gebruiker na contract 1.3 (2026-11-10)
+
+- **Noodlogin (A07):** alleen vanaf het thuisnetwerk (RFC 1918 / fc00::/7). `100.64.0.0/10` (Tailscale/CGNAT) telt niet
+  als privé; een beheerder kan het later in de Hub-UI expliciet toestaan (audit + waarschuwing).
+- **App-ID's (A02) bevestigd:** `org.jellyfin.mobile.jellyleon` (Android), `org.jellyfin.androidtv.jellyleon` (Android TV),
+  `org.jellyfin.swiftfin.jellyleon` (iOS/tvOS; NIET GEVALIDEERD (Mac/Xcode)).
+- **BG-04 — MediaGuard-sleutel van Jelly Leon: via de Hub.** De Hub beheert de (alleen-lezen, gescopete) MediaGuard-sleutel
+  in de eigen vault; Jelly Leon krijgt alleen wat nodig is — bij voorkeur zonder sleuteloverdracht (Jelly Leon vraagt de
+  MediaGuard-gegevens via de Hub met een dienst-JWT). Vraagt de Hub-koppeling van de Jelly Leon-plugin (JL4, golf 1); tot
+  dan `mediaguard: onbekend`.
+- **Extra's (C09):** de Android-app van MediaGuard krijgt ook en-US; my_house krijgt een tabelweergave + toetsenbordbediening
+  bij de grafiek "Laatste 24 uur".
+- Nog open: BG-05 (vóór golf 3), BG-06/BG-18 (vóór P5), GHCR-pakketrechten MediaGuard (gebruiker), `JL_SYNC_PUSH_TOKEN`.
