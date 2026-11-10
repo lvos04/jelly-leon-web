@@ -13,13 +13,19 @@ Controles:
   * toolchain (ADR-0011): baseline.json → toolchain (Node/npm exact, Node-image en serverimage op @sha256) is de enige
     bron; de eigen workflows (node-version, build-container, JLW_SERVER_IMAGE) en de smoketest gebruiken exact die
     waarden, en Node/npm voldoen aan `engines` in package.json (12.x: node >= 24, npm >= 11);
-  * docs/platform-v2/EVIDENCE.json volgt contract §11 (1.2, conformiteitspunt A4): precies de velden uit §11,
-    geldige statussen, nooit "Gereed"/"Geslaagd" in deze bouwomgeving, `validatie` alleen waarden uit de vaste lijst
-    (meerdere gescheiden door "; ", toelichting hoort in `opmerking`), repo = jelly-leon-web, en elke commit die in
-    `bewijs` genoemd wordt bestaat echt in deze repo (commits van andere repos schrijf je als `<repo>@<sha>`).
-    Fail-closed: een ontbrekend of leeg EVIDENCE.json is een overtreding (§11: elke repo houdt het bij), nooit "in
-    orde". Elke `NIET GEVALIDEERD (…)` die in `blokkade` staat, staat ook in `validatie` (geen stille blokkade);
-    `bijgewerkt` is een echte kalenderdatum.
+  * docs/platform-v2/EVIDENCE.json volgt contract §11 (1.3; C1.3-ALG-02 en C1.3-JLW-02): precies de velden uit §11,
+    geldige statussen, nooit "Gereed"/"Geslaagd" in deze bouwomgeving, `validatie` nooit leeg en alleen waarden uit
+    de vaste lijst (meerdere gescheiden door "; ", toelichting hoort in `opmerking`), repo = jelly-leon-web, en elke
+    commit die in `bewijs` genoemd wordt bestaat echt in deze repo (commits van andere repos schrijf je als
+    `<repo>@<sha>`). Fail-closed: een ontbrekend of leeg EVIDENCE.json is een overtreding (§11: elke repo houdt het
+    bij), nooit "in orde". Elke `NIET GEVALIDEERD (…)` die in `blokkade` staat, is een waarde uit de vaste lijst en
+    staat ook in `validatie` (geen stille blokkade); `bijgewerkt` is een echte kalenderdatum.
+    Nieuw in 1.3: `Niet getest` alleen bij status `Niet gestart` (en nooit naast een testuitkomst; omgekeerd draagt
+    een rij `Niet gestart` geen testuitkomst); `Intel-iGPU-getest (ontwikkelmachine)` alleen samen met
+    `NIET GEVALIDEERD (hardware)` (de GPU's van de NAS blijven niet gevalideerd); naast Excel-ID's mogen contractpunten
+    (`C1.3-<code>` uit CONTRACT_1.3_CONFORMITEIT.md, `C1.2-<code>` uit de 1.2-lijst; alleen punten voor alle repos of
+    voor deze repo, en alleen als ze echt in de gekopieerde lijst staan) en reviews
+    (`REVIEW-jelly-leon-web-<onderwerp>`) een eigen regel hebben, met de statussen van het blad Werkpakketten.
 
 Exitcodes: 0 = in orde, 1 = overtreding, 3 = gebruiks-/omgevingsfout.
 """
@@ -56,17 +62,25 @@ STATUS_WERKPAKKET = {"Niet gestart", "Bezig", "Gereed", "Geblokkeerd", "N.v.t."}
 STATUS_TEST = {"Niet gestart", "Bezig", "Geslaagd", "Mislukt", "Geblokkeerd", "N.v.t."}
 STATUS_BESLUIT = {"Open", "Ingevuld", "Getest", "Geblokkeerd", "N.v.t."}
 FORBIDDEN_STATUSES = {"Gereed", "Geslaagd", "Getest", "Ingevuld"}
-# §11 (1.2): vaste lijst; meerdere waarden gescheiden door "; ". De testmatrix (EX01–EX50) zet het
+# §11 (1.3): vaste lijst; meerdere waarden gescheiden door "; ". De testmatrix (EX.., JLT-..) zet het
 # simulatorresultaat in `validatie` ("Sim-geslaagd"/"Sim-mislukt").
+INTEL_IGPU = "Intel-iGPU-getest (ontwikkelmachine)"
+NIET_GETEST = "Niet getest"
+NIET_GEVALIDEERD_HARDWARE = "NIET GEVALIDEERD (hardware)"
 VALIDATIE_WAARDEN = (
     "Sim-getest",
     "Unit-getest",
+    INTEL_IGPU,
     "NIET GEVALIDEERD (echte NAS)",
-    "NIET GEVALIDEERD (hardware)",
+    NIET_GEVALIDEERD_HARDWARE,
     "NIET GEVALIDEERD (account)",
     "NIET GEVALIDEERD (Mac/Xcode)",
+    NIET_GETEST,
 )
 VALIDATIE_TESTMATRIX = ("Sim-geslaagd", "Sim-mislukt")
+#: Waarden die zeggen dat er iets getest is; die passen niet bij `Niet getest` of bij status `Niet gestart`.
+TESTUITKOMSTEN = ("Sim-getest", "Unit-getest", INTEL_IGPU) + VALIDATIE_TESTMATRIX
+STATUS_NIET_GESTART = "Niet gestart"
 VALIDATIE_SEP = "; "
 # Hexadecimale commit-verwijzing in `bewijs`; niet na ":" "-" "@" "/" (digests als sha256:…, sha512-…, <repo>@<sha>,
 # URL-paden) en niet alleen cijfers (run-ID's van GitHub Actions).
@@ -75,6 +89,14 @@ DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # "NIET GEVALIDEERD (…)" in vrije tekst (blokkade): moet ook als lijstwaarde in `validatie` staan.
 NIET_GEVALIDEERD_RE = re.compile(r"NIET GEVALIDEERD \([^)]*\)")
 ID_RE = re.compile(r"^(B\d{2}-\d{3}|I\d{2}-\d{2}-\d{2}|A\d{2}(-\d+)?|APP-\d{2}|EX\d{2}|JLT-\d{2}|D\d{2})$")
+# Contractpunten en reviews (§11, 1.3; K9): eigen regels naast de Excel-ID's, statussen van het blad Werkpakketten.
+CONTRACTPUNT_13_RE = re.compile(r"^C1\.3-([A-Z]+)-(\d{2})$")
+CONTRACTPUNT_12_RE = re.compile(r"^C1\.2-([A-Z]+\d+)$")
+REVIEW_RE = re.compile(rf"^REVIEW-{re.escape(REPO_NAME)}-[a-z0-9][a-z0-9.-]*$")
+CONFORMITEIT_13_REL = "docs/platform-v2/CONTRACT_1.3_CONFORMITEIT.md"
+CONFORMITEIT_12_REL = "docs/platform-v2/CONTRACT_1.2_CONFORMITEIT.md"
+# Hoofdstukken van de conformiteitslijsten die over deze repo gaan: "voor alle repos" en "jelly-leon-web".
+EIGEN_HOOFDSTUK_RE = re.compile(r"^## (0\.|10\. jelly-leon-web\b)")
 # Testrijen: EX01–EX50 (testmatrix) en sinds B03 2.0 JLT-01…74 (update_excel.py routeert JLT-… naar de Testmatrix).
 TEST_ID_RE = re.compile(r"^(EX\d{2}|JLT-\d{2})$")
 
@@ -260,6 +282,7 @@ def check_evidence(repo: Path) -> list[str]:
         return [f"{EVIDENCE_REL}: lege lijst — geen enkel bewijs vastgelegd (contract §11)"]
     errors: list[str] = []
     seen: set[str] = set()
+    punten: dict[str, set[str] | None] = {}  # cache van de gekopieerde conformiteitslijsten
     for index, entry in enumerate(data):
         where = f"{EVIDENCE_REL}[{index}]"
         if not isinstance(entry, dict):
@@ -273,8 +296,13 @@ def check_evidence(repo: Path) -> list[str]:
             errors.append(f"{where}: velden {', '.join(extra)} horen niet bij §11")
         entry_id = str(entry.get("id", ""))
         where = f"{EVIDENCE_REL}[{entry_id or index}]"
-        if not ID_RE.match(entry_id):
-            errors.append(f"{where}: id '{entry_id}' is geen Excel-ID (B03-001, I24-24-01, EX48, JLT-60, D15, …)")
+        if is_contract_or_review_id(entry_id):
+            errors.extend(check_contract_point(repo, where, entry_id, punten))
+        elif not ID_RE.match(entry_id):
+            errors.append(
+                f"{where}: id '{entry_id}' is geen Excel-ID (B03-001, I24-24-01, EX48, JLT-60, D15, …), geen "
+                f"contractpunt (C1.3-JLW-01, C1.2-JW1) en geen review (REVIEW-{REPO_NAME}-<onderwerp>)"
+            )
         if entry_id in seen:
             errors.append(f"{where}: dubbel id")
         seen.add(entry_id)
@@ -287,6 +315,7 @@ def check_evidence(repo: Path) -> list[str]:
         if status in FORBIDDEN_STATUSES:
             errors.append(f"{where}: status '{status}' vraagt echte acceptatie op de NAS en wordt hier nooit gezet")
         errors.extend(check_validatie(where, entry_id, entry.get("validatie", "")))
+        errors.extend(check_validatie_bij_status(where, status, entry.get("validatie", "")))
         errors.extend(check_blokkade_in_validatie(where, entry.get("validatie", ""), entry.get("blokkade", "")))
         if status == "Geblokkeerd" and not entry.get("blokkade"):
             errors.append(f"{where}: status Geblokkeerd zonder blokkade-reden")
@@ -320,16 +349,93 @@ def check_validatie(where: str, entry_id: str, validatie: object) -> list[str]:
     return errors
 
 
+def check_validatie_bij_status(where: str, status: object, validatie: object) -> list[str]:
+    """§11 (1.3): `Niet getest` alleen bij `Niet gestart`; geen tegenstrijdigheid; iGPU is geen NAS-bewijs."""
+    if not isinstance(validatie, str) or not validatie:
+        return []  # al gemeld door check_validatie
+    parts = validatie.split(VALIDATIE_SEP)
+    tested = [part for part in parts if part in TESTUITKOMSTEN]
+    errors: list[str] = []
+    if NIET_GETEST in parts and status != STATUS_NIET_GESTART:
+        errors.append(f"{where}: validatie '{NIET_GETEST}' mag alleen bij status '{STATUS_NIET_GESTART}' "
+                      f"(contract §11, 1.3), niet bij '{status}'")
+    if NIET_GETEST in parts and tested:
+        errors.append(f"{where}: validatie '{validatie}' zegt tegelijk '{NIET_GETEST}' en {', '.join(tested)} "
+                      "(tegenstrijdig; kies één)")
+    elif status == STATUS_NIET_GESTART and tested:
+        errors.append(f"{where}: status '{STATUS_NIET_GESTART}' met testuitkomst {', '.join(tested)} is tegenstrijdig "
+                      "(is er getest, dan is de status 'Bezig' of 'Geblokkeerd')")
+    if INTEL_IGPU in parts and NIET_GEVALIDEERD_HARDWARE not in parts:
+        errors.append(f"{where}: '{INTEL_IGPU}' zegt niets over de GPU's van de NAS; zet er "
+                      f"'{NIET_GEVALIDEERD_HARDWARE}' naast (contract §11, 1.3)")
+    return errors
+
+
 def check_blokkade_in_validatie(where: str, validatie: object, blokkade: object) -> list[str]:
-    """Een `NIET GEVALIDEERD (…)` in de blokkade staat ook in `validatie` (de Excel-kolom toont anders te veel)."""
+    """Een `NIET GEVALIDEERD (…)` in de blokkade is een lijstwaarde en staat ook in `validatie` (§11, 1.3)."""
     if not isinstance(validatie, str) or not isinstance(blokkade, str):
         return []
     parts = set(validatie.split(VALIDATIE_SEP))
-    return [
-        f"{where}: blokkade noemt '{value}', maar validatie niet (zet het als lijstwaarde in 'validatie')"
-        for value in dict.fromkeys(NIET_GEVALIDEERD_RE.findall(blokkade))
-        if value not in parts
-    ]
+    errors: list[str] = []
+    for value in dict.fromkeys(NIET_GEVALIDEERD_RE.findall(blokkade)):
+        if value not in VALIDATIE_WAARDEN:
+            choices = " | ".join(v for v in VALIDATIE_WAARDEN if v.startswith("NIET GEVALIDEERD"))
+            errors.append(f"{where}: blokkade noemt '{value}', dat is geen waarde uit de vaste lijst van §11 "
+                          f"(kies uit {choices}; toelichting in 'opmerking')")
+        elif value not in parts:
+            errors.append(f"{where}: blokkade noemt '{value}', maar validatie niet (zet het als lijstwaarde in "
+                          "'validatie')")
+    return errors
+
+
+def is_contract_or_review_id(entry_id: str) -> bool:
+    return entry_id.startswith(("C1.", "REVIEW-"))
+
+
+def conformiteit_punten(repo: Path, rel: str) -> set[str] | None:
+    """ID's uit de hoofdstukken "voor alle repos" en "jelly-leon-web" van een gekopieerde conformiteitslijst.
+
+    1.3: tabelrijen `| C1.3-ALG-01 |`; 1.2: tabelrijen `| JW1 |` en opsommingen `- **A1**`. None = lijst ontbreekt.
+    """
+    path = repo / rel
+    if not path.is_file():
+        return None
+    found: set[str] = set()
+    own = False
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("## "):
+            own = bool(EIGEN_HOOFDSTUK_RE.match(line))
+            continue
+        if not own:
+            continue
+        match = re.match(r"^\| (C1\.3-[A-Z]+-\d{2}|[A-Z]+\d+) \|", line) or re.match(r"^- \*\*([A-Z]+\d+)\*\*", line)
+        if match:
+            found.add(match.group(1))
+    return found
+
+
+def check_contract_point(repo: Path, where: str, entry_id: str, cache: dict[str, set[str] | None]) -> list[str]:
+    """Contractpunt of review (§11, 1.3): vaste vorm, bestaat in de gekopieerde lijst en gaat over deze repo."""
+    if entry_id.startswith("REVIEW-"):
+        if not REVIEW_RE.match(entry_id):
+            return [(f"{where}: review-id '{entry_id}' volgt niet REVIEW-{REPO_NAME}-<onderwerp> "
+                     "(kleine letters, cijfers, '-' en '.'; contract §11)")]
+        return []
+    if CONTRACTPUNT_13_RE.match(entry_id):
+        rel, code = CONFORMITEIT_13_REL, entry_id
+    elif CONTRACTPUNT_12_RE.match(entry_id):
+        rel, code = CONFORMITEIT_12_REL, entry_id.removeprefix("C1.2-")
+    else:
+        return [f"{where}: contractpunt '{entry_id}' volgt niet C1.3-<REPO>-<nn> of C1.2-<code> (contract §11, K9)"]
+    if rel not in cache:
+        cache[rel] = conformiteit_punten(repo, rel)
+    punten = cache[rel]
+    if punten is None:
+        return [f"{where}: {rel} ontbreekt; contractpunt '{entry_id}' is niet te controleren (fail-closed)"]
+    if code not in punten:
+        return [(f"{where}: contractpunt '{entry_id}' staat niet in {rel} onder 'voor alle repos' of "
+                 "'jelly-leon-web' (bestaat het, en gaat het over deze repo?)")]
+    return []
 
 
 def is_calendar_date(value: object) -> bool:

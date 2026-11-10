@@ -70,7 +70,7 @@ def check_pins(repo: Path, pins: dict[str, str] | None = None) -> list[str]:
     for rel, expected in (pins or KOPIEEN).items():
         path = repo / rel
         if not path.is_file():
-            errors.append(f"{rel} ontbreekt (byte-gelijke kopie uit {BRON_REPO} is verplicht, contract 1.3 C1.3-ALG-01)")
+            errors.append(f"{rel} ontbreekt (byte-gelijke kopie uit {BRON_REPO} is verplicht, C1.3-ALG-01)")
             continue
         data = path.read_bytes()
         found = sha256(data)
@@ -158,7 +158,7 @@ def http_reader(ref: str, attempts: int = 4, sleep: Callable[[float], None] | No
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Drifttest van de platformcontract-kopieën (contract 1.3, C1.3-ALG-01).")
+    parser = argparse.ArgumentParser(description="Drifttest van de platformcontract-kopieën (contract 1.3).")
     parser.add_argument("--repo", type=Path, default=DEFAULT_REPO_ROOT)
     bron = parser.add_mutually_exclusive_group()
     bron.add_argument("--bron-map", type=Path, help="lokale checkout van ai-server-manager (vergelijk met git show)")

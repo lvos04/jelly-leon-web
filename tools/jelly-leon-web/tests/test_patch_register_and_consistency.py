@@ -144,8 +144,9 @@ def test_evidence_rules(repos):
     assert "repo moet 'jelly-leon-web' zijn" in joined
 
 
-def test_evidence_validatie_exact_volgens_section_11_contract_1_2(repos):
-    """A4: alleen waarden uit de vaste lijst, gescheiden door '; '; toelichting hoort in 'opmerking'."""
+def test_evidence_validatie_exact_volgens_section_11(repos):
+    """§11 (1.2 A4, ongewijzigd in 1.3): alleen waarden uit de vaste lijst, gescheiden door '; '; toelichting hoort in
+    'opmerking'. De nieuwe 1.3-waarden staan in test_evidence_contract_1_3.py."""
     fork: Path = repos["fork"]
     good = [
         dict(EVIDENCE_OK, id="B03-001", validatie="Sim-getest; NIET GEVALIDEERD (hardware)"),
@@ -252,8 +253,10 @@ def test_evidence_blokkade_staat_ook_in_validatie(repos):
     assert errors == [
         "docs/platform-v2/EVIDENCE.json[B03-001]: blokkade noemt 'NIET GEVALIDEERD (echte NAS)', maar validatie niet "
         "(zet het als lijstwaarde in 'validatie')",
-        "docs/platform-v2/EVIDENCE.json[B03-013]: blokkade noemt 'NIET GEVALIDEERD (echte NAS/hardware)', maar "
-        "validatie niet (zet het als lijstwaarde in 'validatie')",
+        # 1.3: een samengestelde of zelfbedachte reden is geen lijstwaarde en kan dus nooit in `validatie` staan.
+        "docs/platform-v2/EVIDENCE.json[B03-013]: blokkade noemt 'NIET GEVALIDEERD (echte NAS/hardware)', dat is geen "
+        "waarde uit de vaste lijst van §11 (kies uit NIET GEVALIDEERD (echte NAS) | NIET GEVALIDEERD (hardware) | "
+        "NIET GEVALIDEERD (account) | NIET GEVALIDEERD (Mac/Xcode); toelichting in 'opmerking')",
     ]
 
 

@@ -128,10 +128,7 @@ def test_pinlijst_zonder_conformiteitslijst_faalt(kopie):
     """Alleen het contract vastzetten is geen drifttest van beide (C1.3-ALG-01)."""
     repo, texts = kopie
     errors = contract_drift.check_pins(repo, pins_for({CONTRACT: texts[CONTRACT]}))
-    assert errors == [
-        "docs/platform-v2/CONTRACT_1.3_CONFORMITEIT.md staat niet in de pinlijst van de drifttest (contract 1.3 "
-        "C1.3-ALG-01)"
-    ]
+    assert errors == [f"{CONFORMITEIT} staat niet in de pinlijst van de drifttest (contract 1.3 C1.3-ALG-01)"]
 
 
 def test_vergelijking_met_bron_in_git(tmp_path, kopie):
