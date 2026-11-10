@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""Drifttest van de gekopieerde platformcontracten (contract 1.2, conformiteitspunt A1).
+"""Drifttest van de gekopieerde platformcontracten (contract 1.3, kop en C1.3-ALG-01 / C1.3-JLW-01).
 
-`docs/platform-v2/PLATFORM_CONTRACTEN.md` en `docs/platform-v2/CONTRACT_1.2_CONFORMITEIT.md` zijn byte-gelijke kopieën
-uit `lvos04/ai-server-manager` (bron van waarheid) op een vastgezette bron-commit. Deze repo wijzigt ze nooit zelf; een
-nieuwe contractversie overnemen is een stap van de orkestratie (byte-gelijk kopiëren + bron-commit en sha256 hieronder
-bijwerken). Zelfde opzet als `tools/jelly-leon/contract_drift.py` in de serverfork `lvos04/jelly-leon`.
+`docs/platform-v2/PLATFORM_CONTRACTEN.md` (`contracts 1.3`) en `docs/platform-v2/CONTRACT_1.3_CONFORMITEIT.md` zijn
+byte-gelijke kopieën uit `lvos04/ai-server-manager` (bron van waarheid) op een vastgezette bron-commit; de 1.2-lijst
+`docs/platform-v2/CONTRACT_1.2_CONFORMITEIT.md` blijft als historie staan (C1.3-ALG-01) en is op dezelfde bron-commit
+vastgezet, zodat ook die kopie niet stil kan afwijken. Deze repo wijzigt ze nooit zelf; een nieuwe contractstand
+overnemen is een stap van de orkestratie (byte-gelijk kopiëren + bron-commit en sha256 hieronder bijwerken). Zelfde
+opzet als `tools/jelly-leon/contract_drift.py` in de serverfork `lvos04/jelly-leon`.
 
 Controles:
   1. altijd (offline): elke kopie bestaat en heeft precies de vastgezette sha256 (niemand heeft hier iets aangepast);
-     de contractkopie draagt de versiekop `contracts 1.2`;
+     de contractkopie draagt de versiekop `contracts 1.3`;
   2. `--bron-map <checkout van ai-server-manager>`: de kopie is byte-gelijk aan `git show <bron-commit>:<pad>`;
      wijkt de werkboom van die checkout daarvan af, dan alleen een waarschuwing "bron gewijzigd" (kopie bijwerken);
   3. `--online`: idem via raw.githubusercontent.com op de volledige bron-commit (publieke repo, geen token) en —
@@ -35,17 +37,24 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from jlw_common import DEFAULT_REPO_ROOT  # noqa: E402
 
 BRON_REPO = "lvos04/ai-server-manager"
-#: Commit van ai-server-manager waaruit de kopieën komen (contracts 1.2 incl. de review-correcties R1–R12).
-BRON_COMMIT = "8b54f39408e25fd5c9b9e390d1bbacba52f0e584"
+#: Commit van ai-server-manager waaruit de kopieën komen: contracts 1.3 met de review-correcties RV1–RV13 (ADR-0028
+#: daar); de laatste commit die een van de drie bestanden wijzigde ("Contract 1.3: MediaGuard-overstap … (RV13)").
+BRON_COMMIT = "02b119cb84be9a307a88532f6692ea8a4bcb12f1"
 BRON_BRANCH = "ccr-c133d7a0-kuz1cv"
 #: Pad (gelijk in bron en kopie) → sha256 van de bron op BRON_COMMIT.
 KOPIEEN: dict[str, str] = {
-    "docs/platform-v2/PLATFORM_CONTRACTEN.md": "6a9d29bd94fd991ac5d7876c1a5e51455d471c8bb2833dbed5c52c915b7df424",
-    "docs/platform-v2/CONTRACT_1.2_CONFORMITEIT.md": "6daedffb44a9506f97c7b9135f65393191a4b6247e96661a64c7a6fed5297f59",
+    "docs/platform-v2/PLATFORM_CONTRACTEN.md": "15b30cf17f91b606451ef9c41f02327076ef76ce655ee94e40e3538106962310",
+    "docs/platform-v2/CONTRACT_1.3_CONFORMITEIT.md": "f0a2352ddb27088ae668013501c62a1eaaf879efe742a2d4422ffe8d33b43466",
+    # Historie (C1.3-ALG-01: "mag als historie blijven staan"); byte-gelijk aan dezelfde bron-commit.
+    "docs/platform-v2/CONTRACT_1.2_CONFORMITEIT.md": "634941340afd2d9a55846076ab468ea4aacddb32dd8be6a7b92dd113661d39a4",
 }
 CONTRACT_REL = "docs/platform-v2/PLATFORM_CONTRACTEN.md"
+#: Conformiteitslijst van de versie die deze repo volgt (verplicht naast het contract, C1.3-ALG-01).
+CONFORMITEIT_REL = "docs/platform-v2/CONTRACT_1.3_CONFORMITEIT.md"
 #: Kop die in de contractkopie moet staan (de versie die deze repo volgt).
-VERSIEKOP = b"Versie: `contracts 1.2`"
+VERSIEKOP = b"Versie: `contracts 1.3`"
+#: Kop van de conformiteitslijst die bij die versie hoort.
+CONFORMITEITSKOP = b"# Conformiteit met contract 1.3"
 RAW_URL = "https://raw.githubusercontent.com/{repo}/{ref}/{path}"
 
 Reader = Callable[[str], bytes | None]
@@ -61,7 +70,7 @@ def check_pins(repo: Path, pins: dict[str, str] | None = None) -> list[str]:
     for rel, expected in (pins or KOPIEEN).items():
         path = repo / rel
         if not path.is_file():
-            errors.append(f"{rel} ontbreekt (byte-gelijke kopie uit {BRON_REPO} is verplicht, contract 1.2 A1)")
+            errors.append(f"{rel} ontbreekt (byte-gelijke kopie uit {BRON_REPO} is verplicht, contract 1.3 C1.3-ALG-01)")
             continue
         data = path.read_bytes()
         found = sha256(data)
@@ -73,6 +82,11 @@ def check_pins(repo: Path, pins: dict[str, str] | None = None) -> list[str]:
             )
         if rel == CONTRACT_REL and VERSIEKOP not in data:
             errors.append(f"{rel}: versiekop {VERSIEKOP.decode()} ontbreekt")
+        if rel == CONFORMITEIT_REL and not data.startswith(CONFORMITEITSKOP):
+            errors.append(f"{rel}: begint niet met de kop '{CONFORMITEITSKOP.decode()}'")
+    for rel in (CONTRACT_REL, CONFORMITEIT_REL):
+        if rel not in (pins or KOPIEEN):
+            errors.append(f"{rel} staat niet in de pinlijst van de drifttest (contract 1.3 C1.3-ALG-01)")
     return errors
 
 
@@ -144,7 +158,7 @@ def http_reader(ref: str, attempts: int = 4, sleep: Callable[[float], None] | No
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Drifttest van de platformcontract-kopieën (contract 1.2, A1).")
+    parser = argparse.ArgumentParser(description="Drifttest van de platformcontract-kopieën (contract 1.3, C1.3-ALG-01).")
     parser.add_argument("--repo", type=Path, default=DEFAULT_REPO_ROOT)
     bron = parser.add_mutually_exclusive_group()
     bron.add_argument("--bron-map", type=Path, help="lokale checkout van ai-server-manager (vergelijk met git show)")

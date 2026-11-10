@@ -1,5 +1,5 @@
 # Jelly Leon Web CI — bewaakt de forkregels (patchregister, technische identiteit, zichtbare naam, toolchain,
-# workflow-guards, register van upstream-gedrag, EVIDENCE.json, byte-gelijke kopie van platformcontract 1.2),
+# workflow-guards, register van upstream-gedrag, EVIDENCE.json, byte-gelijke kopie van platformcontract 1.3),
 # draait de upstream-kwaliteitscontroles (eslint, stylelint, tsc, vitest), maakt de productiebuild + es-check in de
 # Node-image op digest (dezelfde als de web-stage van lvos04/jelly-leon), bewaart die als artefact (tarball + sha256 +
 # bouwinfo) en test dat artefact in een echte browser tegen de officiële Jellyfin-serverimage, in de layouts Modern en
@@ -66,8 +66,9 @@ jobs:
       - name: Patchregister (elke afwijking van upstream geregistreerd)
         run: python tools/jelly-leon-web/patch_register_check.py
 
-      # Contract 1.2 (A1): de kopieën zijn byte-gelijk aan lvos04/ai-server-manager op de vastgezette bron-commit
-      # (publieke repo, geen token). Is de bron daarna gewijzigd, dan alleen een waarschuwing (overnemen = orkestratie).
+      # Contract 1.3 (C1.3-ALG-01, C1.3-JLW-01): de kopieën zijn byte-gelijk aan lvos04/ai-server-manager op de
+      # vastgezette bron-commit (publieke repo, geen token). Is de bron daarna gewijzigd, dan alleen een waarschuwing
+      # (overnemen = orkestratie).
       - name: Platformcontract-kopie (drifttest tegen de bron)
         run: python tools/jelly-leon-web/contract_drift.py --online --github
 

@@ -1,4 +1,4 @@
-"""Drifttest van de platformcontract-kopieën (contract 1.2, A1) — tools/jelly-leon-web/contract_drift.py.
+"""Drifttest van de platformcontract-kopieën (contract 1.3, C1.3-JLW-01) — tools/jelly-leon-web/contract_drift.py.
 
 De eerste test is de echte drifttest op deze repo (draait in CI in de job forkregels); de rest bewijst met een nep-bron
 (tijdelijke git-repo, nep-HTTP) dat elke vorm van drift of een onbereikbare bron als fout wordt gemeld en nooit als
@@ -17,7 +17,16 @@ import pytest
 from conftest import REPO_ROOT, commit_all, init_repo, write
 
 CONTRACT = "docs/platform-v2/PLATFORM_CONTRACTEN.md"
-CONFORMITEIT = "docs/platform-v2/CONTRACT_1.2_CONFORMITEIT.md"
+CONFORMITEIT = "docs/platform-v2/CONTRACT_1.3_CONFORMITEIT.md"
+HISTORIE = "docs/platform-v2/CONTRACT_1.2_CONFORMITEIT.md"
+#: Bron-commit en sha256 van contract 1.3 zoals gemeten bij het overnemen (2026-11-10). Een tweede, vaste plek: wie de
+#: pin in contract_drift.py stil verandert zonder de kopieën opnieuw te nemen, laat deze test falen.
+BRON_COMMIT_13 = "02b119cb84be9a307a88532f6692ea8a4bcb12f1"
+SHA256_13 = {
+    CONTRACT: "15b30cf17f91b606451ef9c41f02327076ef76ce655ee94e40e3538106962310",
+    CONFORMITEIT: "f0a2352ddb27088ae668013501c62a1eaaf879efe742a2d4422ffe8d33b43466",
+    HISTORIE: "634941340afd2d9a55846076ab468ea4aacddb32dd8be6a7b92dd113661d39a4",
+}
 SIBLING_SOURCE = REPO_ROOT.parent / "ai-server-manager"
 
 
@@ -28,8 +37,8 @@ def pins_for(texts: dict[str, bytes]) -> dict[str, str]:
 @pytest.fixture()
 def kopie(tmp_path: Path) -> tuple[Path, dict[str, bytes]]:
     texts = {
-        CONTRACT: "# Platformcontracten\n\nVersie: `contracts 1.2` · test\n".encode(),
-        CONFORMITEIT: "# Conformiteit 1.2\n".encode(),
+        CONTRACT: "# Platformcontracten\n\nVersie: `contracts 1.3` · test\n".encode(),
+        CONFORMITEIT: "# Conformiteit met contract 1.3 — test\n".encode(),
     }
     repo = tmp_path / "kopie"
     for rel, data in texts.items():
@@ -39,11 +48,21 @@ def kopie(tmp_path: Path) -> tuple[Path, dict[str, bytes]]:
 
 
 def test_echte_kopieen_zijn_byte_gelijk_aan_de_vastgezette_bron():
-    """De drifttest zelf: beide kopieën in deze repo hebben exact de sha256 van de bron-commit."""
+    """De drifttest zelf: de kopieën in deze repo hebben exact de sha256 van de bron-commit (contract 1.3)."""
     assert contract_drift.check_pins(REPO_ROOT) == []
-    assert set(contract_drift.KOPIEEN) == {CONTRACT, CONFORMITEIT}
+    assert contract_drift.KOPIEEN == SHA256_13
+    assert contract_drift.BRON_COMMIT == BRON_COMMIT_13
+    assert contract_drift.VERSIEKOP == b"Versie: `contracts 1.3`"
     assert contract_drift.VERSIEKOP in (REPO_ROOT / CONTRACT).read_bytes()
-    assert len(contract_drift.BRON_COMMIT) == 40
+    assert (REPO_ROOT / CONFORMITEIT).read_bytes().startswith(b"# Conformiteit met contract 1.3")
+
+
+def test_kopie_noemt_de_punten_voor_deze_repo():
+    """C1.3-JLW-01/02 staan in de gekopieerde lijst; de EVIDENCE-regels voor contractpunten verwijzen daarnaar."""
+    text = (REPO_ROOT / CONFORMITEIT).read_text(encoding="utf-8")
+    assert "## 10. jelly-leon-web (web-fork)" in text
+    for punt in ("C1.3-JLW-01", "C1.3-JLW-02"):
+        assert f"| {punt} |" in text, punt
 
 
 @pytest.mark.skipif(not (SIBLING_SOURCE / ".git").exists(), reason="geen lokale checkout van ai-server-manager")
@@ -75,15 +94,44 @@ def test_ontbrekende_kopie_faalt(kopie):
     repo, texts = kopie
     (repo / CONTRACT).unlink()
     errors = contract_drift.check_pins(repo, pins_for(texts))
-    assert errors and "ontbreekt" in errors[0] and "A1" in errors[0]
+    assert errors and "ontbreekt" in errors[0] and "C1.3-ALG-01" in errors[0]
 
 
 def test_ontbrekende_versiekop_faalt(kopie):
     repo, texts = kopie
-    oud = texts[CONTRACT].replace(b"contracts 1.2", b"contracts 1.1")
+    oud = texts[CONTRACT].replace(b"contracts 1.3", b"contracts 1.1")
     (repo / CONTRACT).write_bytes(oud)
     errors = contract_drift.check_pins(repo, pins_for({CONTRACT: oud, CONFORMITEIT: texts[CONFORMITEIT]}))
-    assert errors == ["docs/platform-v2/PLATFORM_CONTRACTEN.md: versiekop Versie: `contracts 1.2` ontbreekt"]
+    assert errors == ["docs/platform-v2/PLATFORM_CONTRACTEN.md: versiekop Versie: `contracts 1.3` ontbreekt"]
+
+
+def test_contract_1_2_als_kopie_faalt_ook_met_kloppende_pin(kopie):
+    """Een (byte-gelijke) 1.2-kopie met een bijgewerkte pin is niet genoeg: deze repo volgt 1.3."""
+    repo, texts = kopie
+    oud = texts[CONTRACT].replace(b"contracts 1.3", b"contracts 1.2")
+    (repo / CONTRACT).write_bytes(oud)
+    errors = contract_drift.check_pins(repo, pins_for({CONTRACT: oud, CONFORMITEIT: texts[CONFORMITEIT]}))
+    assert errors == ["docs/platform-v2/PLATFORM_CONTRACTEN.md: versiekop Versie: `contracts 1.3` ontbreekt"]
+
+
+def test_verkeerde_conformiteitslijst_faalt(kopie):
+    repo, texts = kopie
+    andere = b"# Conformiteit met contract 1.2 \xe2\x80\x94 wat elke repo moet veranderen\n"
+    (repo / CONFORMITEIT).write_bytes(andere)
+    errors = contract_drift.check_pins(repo, pins_for({CONTRACT: texts[CONTRACT], CONFORMITEIT: andere}))
+    assert errors == [
+        "docs/platform-v2/CONTRACT_1.3_CONFORMITEIT.md: begint niet met de kop '# Conformiteit met contract 1.3'"
+    ]
+
+
+def test_pinlijst_zonder_conformiteitslijst_faalt(kopie):
+    """Alleen het contract vastzetten is geen drifttest van beide (C1.3-ALG-01)."""
+    repo, texts = kopie
+    errors = contract_drift.check_pins(repo, pins_for({CONTRACT: texts[CONTRACT]}))
+    assert errors == [
+        "docs/platform-v2/CONTRACT_1.3_CONFORMITEIT.md staat niet in de pinlijst van de drifttest (contract 1.3 "
+        "C1.3-ALG-01)"
+    ]
 
 
 def test_vergelijking_met_bron_in_git(tmp_path, kopie):
@@ -91,7 +139,7 @@ def test_vergelijking_met_bron_in_git(tmp_path, kopie):
     bron = init_repo(tmp_path / "bron")
     for rel, data in texts.items():
         write(bron, rel, data.decode())
-    commit = commit_all(bron, "contract 1.2")
+    commit = commit_all(bron, "contract 1.3")
     errors, warnings = contract_drift.compare_with_source(
         repo, contract_drift.git_reader(bron, commit), contract_drift.worktree_reader(bron), pins_for(texts)
     )
