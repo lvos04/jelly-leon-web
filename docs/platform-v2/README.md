@@ -12,8 +12,9 @@ Onbekende NAS-gegevens (D01–D18) worden nooit met voorbeeldwaarden ingevuld; z
 ## B03 2.0 — universele mediaserver (goedgekeurd door de gebruiker op 2026-11-09)
 
 - `02_BOUWPLANNEN/B03_UNIVERSELE_MEDIASERVER.md` (versie 2.0), `02_BOUWPLANNEN/B03_FASERING.md` en
-  `02_BOUWPLANNEN/B03_BESLUITEN.md` zijn byte-gelijke kopieën uit `lvos04/ai-server-manager` (bron-commit `0f390bf`),
-  net als `00_START/INHOUDSOPGAVE.md`. Nooit hier bewerken: een nieuwe stand overnemen = opnieuw byte-gelijk kopiëren.
+  `02_BOUWPLANNEN/B03_BESLUITEN.md` zijn byte-gelijke kopieën uit `lvos04/ai-server-manager` (bron-commit `0f390bf`;
+  `B03_BESLUITEN.md` sinds 2026-11-10 op `c63b32e`, met de besluiten van de gebruiker na contract 1.3), net als
+  `00_START/INHOUDSOPGAVE.md`. Nooit hier bewerken: een nieuwe stand overnemen = opnieuw byte-gelijk kopiëren.
 - **HARDE EIS van de gebruiker:** alle kijkgeschiedenis (gezien-status, hervatpunten, favorieten, beoordelingen, onthouden
   spoorkeuzes, gebruikers, rechten) en de MediaGuard-voortgang blijven altijd beschikbaar (bouwplan §10.9 en B03-015). Geen
   cutover zonder vóór/na-rapport per gebruiker en uitdrukkelijk akkoord van de gebruiker op elk verschil; de bestaande
@@ -31,22 +32,28 @@ Onbekende NAS-gegevens (D01–D18) worden nooit met voorbeeldwaarden ingevuld; z
   de oude rijen; de oude tekst staat er letterlijk vooraan in) en de testrijen JLT-01…74 (conventie van ai-server-manager:
   Fase `P6 - E2E`, Soort `Testen`, startstatus en bewijsrijen in `Afhankelijkheid`). Nooit `Gereed` of `Geslaagd`.
 
-## Platformcontract 1.2
+## Platformcontract 1.3
 
-- [`PLATFORM_CONTRACTEN.md`](PLATFORM_CONTRACTEN.md) (`contracts 1.2`) en
-  [`CONTRACT_1.2_CONFORMITEIT.md`](CONTRACT_1.2_CONFORMITEIT.md) zijn **byte-gelijke kopieën** uit
-  `lvos04/ai-server-manager` (bron van waarheid) op bron-commit `8b54f39`. Nooit hier bewerken: een nieuwe stand
-  overnemen = opnieuw byte-gelijk kopiëren en bron-commit + sha256 in `tools/jelly-leon-web/contract_drift.py`
-  bijwerken. De drifttest (`contract_drift.py`, tests in `tools/jelly-leon-web/tests/test_contract_drift.py`) draait in
-  de CI-job *forkregels* online tegen de bron.
-- Relatieve links in de kopieën (bv. `../adr/ADR-0011-contract-1-2.md`) wijzen naar bestanden in
-  `ai-server-manager`, niet naar de ADR's van deze repo.
-- Wat 1.2 voor deze repo betekent (JW1–JW3, A1–A7): [`docs/adr/ADR-0010-contract-1-2.md`](../adr/ADR-0010-contract-1-2.md).
+- [`PLATFORM_CONTRACTEN.md`](PLATFORM_CONTRACTEN.md) (`contracts 1.3`) en
+  [`CONTRACT_1.3_CONFORMITEIT.md`](CONTRACT_1.3_CONFORMITEIT.md) zijn **byte-gelijke kopieën** uit
+  `lvos04/ai-server-manager` (bron van waarheid) op bron-commit `02b119cb84be`; de 1.2-lijst
+  [`CONTRACT_1.2_CONFORMITEIT.md`](CONTRACT_1.2_CONFORMITEIT.md) blijft als historie staan, byte-gelijk aan dezelfde
+  bron-commit. Nooit hier bewerken: een nieuwe stand overnemen = opnieuw byte-gelijk kopiëren en bron-commit + sha256 in
+  `tools/jelly-leon-web/contract_drift.py` bijwerken. De drifttest (`contract_drift.py`, tests in
+  `tools/jelly-leon-web/tests/test_contract_drift.py`) draait in de CI-job *forkregels* online tegen de bron.
+- Verwijzingen in de kopieën naar `ai-server-manager:<pad>` (bv. `ai-server-manager:docs/adr/ADR-0027-contract-1-3.md`)
+  gaan over bestanden in `ai-server-manager`, niet over de ADR's van deze repo.
+- Wat 1.3 voor deze repo betekent (C1.3-JLW-01/02, C1.3-ALG-01…05, repowerk C07):
+  [`docs/adr/ADR-0012-contract-1-3.md`](../adr/ADR-0012-contract-1-3.md); 1.2 (JW1–JW3, A1–A7):
+  [`docs/adr/ADR-0010-contract-1-2.md`](../adr/ADR-0010-contract-1-2.md).
+- `EVIDENCE.json` volgt §11 van 1.3; `tools/jelly-leon-web/check_fork_consistency.py` bewaakt dat in de CI (ook de
+  regels voor contractpunten `C1.3-…`/`C1.2-…` en reviews `REVIEW-jelly-leon-web-…`).
 
 ## Bestanden
 
-- `PLATFORM_CONTRACTEN.md` (kopie, `contracts 1.2`)
-- `CONTRACT_1.2_CONFORMITEIT.md` (kopie)
+- `PLATFORM_CONTRACTEN.md` (kopie, `contracts 1.3`)
+- `CONTRACT_1.3_CONFORMITEIT.md` (kopie)
+- `CONTRACT_1.2_CONFORMITEIT.md` (kopie, historie)
 - `00_START/BESLUITEN_EN_ONBEKENDEN.md`
 - `00_START/INHOUDSOPGAVE.md`
 - `00_START/INHOUD_CONTROLE.json`

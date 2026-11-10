@@ -9,6 +9,17 @@ GPL-2.0-or-later (zie [`LICENSE`](LICENSE)); gebaseerd op Jellyfin, met dank aan
 > Technische identiteit blijft **Jellyfin** (`jellyfin-web` 12.4.0, clientnaam "Jellyfin Web" richting de server);
 > alleen de **zichtbare naam** is "Jelly Leon" (browsertitel en PWA-naam, patch JLW-0002 — de enige merkwijziging).
 
+## Contractronde 1.3 (2026-11-10) — [`ADR-0012`](docs/adr/ADR-0012-contract-1-3.md)
+
+- [`PLATFORM_CONTRACTEN.md`](docs/platform-v2/PLATFORM_CONTRACTEN.md) (`contracts 1.3`) en
+  [`CONTRACT_1.3_CONFORMITEIT.md`](docs/platform-v2/CONTRACT_1.3_CONFORMITEIT.md) byte-gelijk uit
+  `lvos04/ai-server-manager@02b119cb84be`; de drifttest (`tools/jelly-leon-web/contract_drift.py`) pint ze, met de
+  1.2-lijst als historie (C1.3-JLW-01).
+- `EVIDENCE.json` volgt §11 van 1.3 en wordt daarop gecontroleerd in de CI (C1.3-JLW-02): o.a. `Niet getest` alleen
+  bij `Niet gestart`, iGPU-bewijs alleen met het hardwarevoorbehoud, elke `NIET GEVALIDEERD` uit `blokkade` ook in
+  `validatie`, contractpunten alleen als ze in de gekopieerde lijst staan.
+- Geen functionele wijziging aan de webclient; niets op een echte NAS getest.
+
 ## Stand P4-0 (B03-014 webdeel, 2026-11-09) — [`ADR-0011`](docs/adr/ADR-0011-upgrade-12x-webclient.md)
 
 - **Herbasis op v12.4** met `tools/jelly-leon-web/upstream_sync.py` (0 conflicten), forkversie `12.4.0-jl.0`.
@@ -62,10 +73,10 @@ GPL-2.0-or-later (zie [`LICENSE`](LICENSE)); gebaseerd op Jellyfin, met dank aan
 | [`docs/platform-v2/FORK_STRATEGIE.md`](docs/platform-v2/FORK_STRATEGIE.md) | hoe B03-uitbreidingen in de webclient komen (plugin/configuratie eerst, kleine haken) |
 | [`docs/platform-v2/INVENTARIS.md`](docs/platform-v2/INVENTARIS.md) | bouwsysteem, Node, tests, lint, i18n, routes, delta-matrix |
 | [`docs/platform-v2/PATCHES.md`](docs/platform-v2/PATCHES.md) | patchregister (CI-gecontroleerd) |
-| [`docs/adr/`](docs/adr/README.md) | architectuurbesluiten ADR-0001…0011 (ADR-0011: upgrade naar 12.x) |
+| [`docs/adr/`](docs/adr/README.md) | architectuurbesluiten ADR-0001…0012 (ADR-0011: upgrade naar 12.x; ADR-0012: contract 1.3) |
 | [`docs/platform-v2/UPSTREAM_GEDRAG.md`](docs/platform-v2/UPSTREAM_GEDRAG.md) | register van upstream-gedrag, webdeel (haakpunten, ankercontrole) |
 | [`docs/platform-v2/BOUWVERIFICATIE_P4-0.md`](docs/platform-v2/BOUWVERIFICATIE_P4-0.md) | metingen van P4-0 op v12.4 (commando's en uitkomsten) |
-| [`docs/platform-v2/PLATFORM_CONTRACTEN.md`](docs/platform-v2/PLATFORM_CONTRACTEN.md) | platformcontract 1.2 (kopie, bron: `lvos04/ai-server-manager`) |
+| [`docs/platform-v2/PLATFORM_CONTRACTEN.md`](docs/platform-v2/PLATFORM_CONTRACTEN.md) | platformcontract 1.3 (kopie, bron: `lvos04/ai-server-manager`; conformiteitslijst `CONTRACT_1.3_CONFORMITEIT.md`) |
 | [`docs/platform-v2/EVIDENCE.json`](docs/platform-v2/EVIDENCE.json) | bewijs per Excel-ID (contract §11) |
 | [`deploy/truenas/CUSTOM_APP.md`](deploy/truenas/CUSTOM_APP.md) | waarom er geen eigen Custom App is (zit in `jelly-leon`) |
 
