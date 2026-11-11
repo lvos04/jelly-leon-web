@@ -1,0 +1,367 @@
+{
+ "test": "Onafhankelijke review/QA contractronde 1.3 (C1.3-JLW-01, C1.3-JLW-02, C1.3-ALG-01…03) — alles opnieuw zoals de CI het draait, lokaal; nadruk op de NU-punten en op de byte-gelijke kopie",
+ "datum": "2026-11-11",
+ "code": "beginstand a95995b08a3a61e3e9f900b122595369b273e23d (werkboom schoon, gelijk aan origin/ccr-c133d7a0-kuz1cv); daarna twee reparaties: 53a5dd99e en de963856d (alleen tools/jelly-leon-web, geen webbroncode)",
+ "omgeving": {
+  "machine": "eigen bouwmachine van de gebruiker: Ubuntu 26.04.1 LTS, kernel 7.0.0-42, 22 CPU's, 14 GiB RAM (gedeeld met andere bouwers), Docker Engine 29.1.3; direct internet",
+  "node": "v24.22.2 / npm 11.19.1 in de Node-image van de CI-build (docker.io/library/node:24.22.2-bookworm-slim@sha256:01d566e8d94d8c619591d78652babfccd3c6992a3dffa9ed5ab39e11cf6c70e9), als gewone gebruiker (uid 1000), op 4 kernen met nice -n 10, op een 'git archive'-kopie van a95995b08 buiten de repo",
+  "python": "3.12.16 in een venv buiten de repo (pytest 8.4.2, pyyaml 6.0.3, actionlint 1.7.12, shellcheck 0.11.0, playwright 1.63.0) — tools/jelly-leon-web/requirements-dev.txt",
+  "browser": "Chromium 153.0.8010.12 headless (Playwright 1.63.0)",
+  "bron": "naastgelegen checkout van lvos04/ai-server-manager (alleen gelezen), HEAD 7d3a8ce8c; laatste commit die de drie contractbestanden raakt: 02b119cb8 = de bron-commit van de drifttest",
+  "werkwijze": "zware stappen één voor één; tijdelijke bestanden buiten de repo en buiten /tmp"
+ },
+ "stappen": [
+  {
+   "commando": "cmp docs/platform-v2/<bestand> ../ai-server-manager/docs/platform-v2/<bestand> (PLATFORM_CONTRACTEN.md, CONTRACT_1.3_CONFORMITEIT.md, CONTRACT_1.2_CONFORMITEIT.md)",
+   "exit": 0,
+   "stand": "a95995b08 en de963856d",
+   "uitkomst": "alle drie byte-gelijk; sha256 15b30cf17f91…2310, f0a2352ddb27…3466 en 634941340afd…39a4 = de drie pins in contract_drift.py"
+  },
+  {
+   "commando": "git rev-parse <stand>:docs/platform-v2/<bestand> in de eigen origin, in de bron op 02b119cb8 en in de bron op HEAD",
+   "exit": 0,
+   "stand": "a95995b08",
+   "uitkomst": "per bestand overal dezelfde git-blob (de8120edd…, 46b4733a9…, 7d6474336…): de kopie in git is gelijk aan de bron, niet alleen de werkboom"
+  },
+  {
+   "commando": "python tools/jelly-leon-web/contract_drift.py",
+   "exit": 0,
+   "stand": "a95995b08 en de963856d",
+   "uitkomst": "Contractkopieën in orde (offline, sha256-pin): 3 bestanden byte-gelijk aan lvos04/ai-server-manager@02b119cb8."
+  },
+  {
+   "commando": "python tools/jelly-leon-web/contract_drift.py --bron-map ../ai-server-manager",
+   "exit": 0,
+   "stand": "a95995b08 en de963856d",
+   "uitkomst": "Contractkopieën in orde (tegen de lokale bron): 3 bestanden byte-gelijk."
+  },
+  {
+   "commando": "python tools/jelly-leon-web/contract_drift.py --online --github",
+   "exit": 0,
+   "stand": "a95995b08 en de963856d",
+   "uitkomst": "Contractkopieën in orde (online tegen GitHub): 3 bestanden byte-gelijk; geen driftwaarschuwing (de bronbranch is sinds 02b119cb8 niet gewijzigd op deze bestanden)"
+  },
+  {
+   "commando": "python tools/jelly-leon-web/check_fork_consistency.py",
+   "exit": 0,
+   "stand": "a95995b08 en de963856d",
+   "uitkomst": "Forkconsistentie in orde: basis v12.4 (0a580ce8df89), forkversie 12.4.0-jl.0, technische identiteit jellyfin-web 12.4.0; EVIDENCE.json (15 regels) volgt §11 van 1.3, ook met de aangescherpte controle"
+  },
+  {
+   "commando": "python tools/jelly-leon-web/patch_register_check.py",
+   "exit": 0,
+   "stand": "a95995b08 en de963856d",
+   "uitkomst": "Patchregister in orde (118 afwijkende paden, 4 in core-patches, 2 patches: JLW-0001 en JLW-0002); LICENSE en CONTRIBUTORS.md gelijk aan de upstream-basis"
+  },
+  {
+   "commando": "python tools/jelly-leon-web/workflow_check.py --overzicht",
+   "exit": 0,
+   "stand": "a95995b08 en de963856d",
+   "uitkomst": "Workflows in orde: 10 upstream (geheimen bewaakt), 2 eigen (vastgezet)."
+  },
+  {
+   "commando": "python tools/jelly-leon-web/upstream_gedrag_check.py --overzicht",
+   "exit": 0,
+   "stand": "a95995b08 en de963856d",
+   "uitkomst": "Upstream-gedrag (webdeel) in orde: 19 ankers gevonden, alle UG-WEB-verwijzingen bekend."
+  },
+  {
+   "commando": "python -m pytest -q -c tools/jelly-leon-web/pytest.ini tools/jelly-leon-web/tests",
+   "exit": 0,
+   "duur_s": 6,
+   "uitkomst": "226 geslaagd op a95995b08; 250 geslaagd op de963856d (24 nieuwe tests). Van die 24 falen er 20 op de oude code (17 voor de EVIDENCE-controle, 3 voor de drifttest); de overige 4 bewaken dat de reparatie niet doorschiet (lopende tekst blijft toegestaan; een deels ontbrekende bron blijft drift)"
+  },
+  {
+   "commando": "actionlint .github/workflows/jelly-leon-web-ci.yml .github/workflows/upstream-sync.yml (met shellcheck 0.11.0)",
+   "exit": 0,
+   "stand": "a95995b08 en de963856d",
+   "uitkomst": "geen meldingen"
+  },
+  {
+   "commando": "npm ci --no-audit --no-fund",
+   "exit": 0,
+   "duur_s": 16,
+   "stand": "a95995b08",
+   "uitkomst": "1771 pakketten, exact volgens package-lock.json"
+  },
+  {
+   "commando": "npm run lint",
+   "exit": 0,
+   "stand": "a95995b08",
+   "uitkomst": "eslint 0 fouten, 98 upstream-waarschuwingen"
+  },
+  {
+   "commando": "npm run stylelint",
+   "exit": 0,
+   "stand": "a95995b08",
+   "uitkomst": "0 problemen"
+  },
+  {
+   "commando": "npm run build:check",
+   "exit": 0,
+   "stand": "a95995b08",
+   "uitkomst": "tsc --noEmit 0 fouten"
+  },
+  {
+   "commando": "npm run test",
+   "exit": 0,
+   "duur_s": 4,
+   "stand": "a95995b08",
+   "uitkomst": "vitest 12 bestanden, 164/164"
+  },
+  {
+   "commando": "npm run build:production",
+   "exit": 0,
+   "duur_s": 93,
+   "stand": "a95995b08",
+   "uitkomst": "webpack 5.109.0 compiled with 2 warnings (upstream-grootte); dist 2348 bestanden, 61 MB, <title>Jelly Leon</title>. Verschil met de CI: lokaal zonder JELLYFIN_VERSION en zonder git in de image, dus de upstream-melding 'Failed to get commit sha' (de build gaat dan door zonder commit-aanduiding)"
+  },
+  {
+   "commando": "npm run escheck",
+   "exit": 0,
+   "stand": "a95995b08",
+   "uitkomst": "982 bestanden gecontroleerd, alle ES5-compatibel"
+  },
+  {
+   "commando": "python tools/jelly-leon-web/e2e/web_smoke.py --modus fork --dist dist --image docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771 --layouts modern,legacy --uitvoer <map>",
+   "exit": 0,
+   "duur_s": 50,
+   "stand": "a95995b08",
+   "uitkomst": "45/45 stappen (Modern en Legacy; aanmelden, startscherm, zoeken, details, kindprofiel, herstart, terug naar de stock-webclient en weer vooruit) — web-smoke-fork.json"
+  },
+  {
+   "commando": "python tools/jelly-leon-web/e2e/web_smoke.py --modus stock --image docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771 --layouts modern,legacy --uitvoer <map>",
+   "exit": 0,
+   "duur_s": 39,
+   "stand": "a95995b08",
+   "uitkomst": "39/39 stappen — web-smoke-stock.json"
+  },
+  {
+   "commando": "python tools/jelly-leon-web/e2e/upgrade_proef.py --dist dist --oude-image docker.io/jellyfin/jellyfin:10.11.11@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db --image docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771 --layouts modern,legacy --negatief-verwacht start --uitvoer <map>",
+   "exit": 0,
+   "duur_s": 95,
+   "stand": "a95995b08",
+   "uitkomst": "50/50 stappen; kijkgegevens VÓÓR = NA (zelfde sha256), terugzetten zonder verschillen; JLT-61b blijft Sim-mislukt zoals vastgelegd (de oude stock-image meldt zich gezond maar is onbruikbaar) — upgrade-proef-lokaal.json"
+  },
+  {
+   "commando": "docker ps -a --filter name=jlw-",
+   "exit": 0,
+   "uitkomst": "na afloop geen eigen testcontainers meer; containers van anderen niet aangeraakt"
+  }
+ ],
+ "tegenproeven": {
+  "werkwijze": "eigen script buiten de repo: tijdelijke kopieën van de drie contractbestanden en van EVIDENCE.json met telkens één ingebrachte fout; de online-bron is nagebootst (urlopen vervangen), de echte bron en de echte repo zijn niet gewijzigd",
+  "voor_de_reparatie": "67 tegenproeven op a95995b08: geen enkele gaf 'in orde' waar dat niet mocht; bij 2 daarvan (bronmap zonder de bron-commit; online 404 op alle bestanden) was de exitcode 1 waar de ADR's 3 beloven (bevinding 2). Daarnaast 5 verkenningen met een afwijkende schrijfwijze in blokkade: alle 5 gaven nul meldingen (bevinding 1)",
+  "na_de_reparatie": "87 tegenproeven op de963856d: 87 zoals verwacht, 0 afwijkend",
+  "contract_drift": [
+   {
+    "geval": "ongewijzigde kopie (offline, lokale bron, nagebootste online-bron)",
+    "verwacht": "exit 0",
+    "gemeten": "exit 0"
+   },
+   {
+    "geval": "één bit gewijzigd in het contract",
+    "verwacht": "exit 1",
+    "gemeten": "exit 1"
+   },
+   {
+    "geval": "extra regeleinde aan het eind",
+    "verwacht": "exit 1",
+    "gemeten": "exit 1"
+   },
+   {
+    "geval": "BOM vooraan",
+    "verwacht": "exit 1",
+    "gemeten": "exit 1"
+   },
+   {
+    "geval": "laatste regeleinde weg in de 1.3-lijst",
+    "verwacht": "exit 1",
+    "gemeten": "exit 1"
+   },
+   {
+    "geval": "1.3-lijst ontbreekt",
+    "verwacht": "exit 1",
+    "gemeten": "exit 1"
+   },
+   {
+    "geval": "1.2-historie gewijzigd",
+    "verwacht": "exit 1",
+    "gemeten": "exit 1"
+   },
+   {
+    "geval": "leeg contractbestand",
+    "verwacht": "exit 1",
+    "gemeten": "exit 1"
+   },
+   {
+    "geval": "spaties aan regeleinden strippen (de bron heeft er geen, de kopie blijft dus gelijk)",
+    "verwacht": "exit 0",
+    "gemeten": "exit 0"
+   },
+   {
+    "geval": "contract vervangen door de lijst",
+    "verwacht": "exit 1",
+    "gemeten": "exit 1"
+   },
+   {
+    "geval": "symbolische koppeling naar identieke inhoud (de inhoud telt)",
+    "verwacht": "exit 0",
+    "gemeten": "exit 0"
+   },
+   {
+    "geval": "map in plaats van bestand",
+    "verwacht": "exit 1",
+    "gemeten": "exit 1"
+   },
+   {
+    "geval": "bronmap zonder git",
+    "verwacht": "exit 3",
+    "gemeten": "exit 3"
+   },
+   {
+    "geval": "bronmap is een git-repo zonder de bron-commit",
+    "verwacht": "exit 3 (omgevingsfout)",
+    "gemeten": "exit 1 op a95995b08; exit 3 op de963856d"
+   },
+   {
+    "geval": "gewijzigde kopie tegen de echte bronmap",
+    "verwacht": "exit 1",
+    "gemeten": "exit 1"
+   },
+   {
+    "geval": "online: bron onbereikbaar, time-out, HTTP 500, HTTP 403",
+    "verwacht": "exit 3",
+    "gemeten": "exit 3 (alle vier)"
+   },
+   {
+    "geval": "online: bron wijkt af of is leeg",
+    "verwacht": "exit 1",
+    "gemeten": "exit 1 (beide)"
+   },
+   {
+    "geval": "online: HTTP 404 op alle drie de bestanden (bron niet meer leesbaar)",
+    "verwacht": "exit 3 (omgevingsfout, ADR-0010 en ADR-0012)",
+    "gemeten": "exit 1 op a95995b08; exit 3 op de963856d"
+   },
+   {
+    "geval": "online: één van de drie ontbreekt in de bron",
+    "verwacht": "exit 1 (drift)",
+    "gemeten": "exit 1"
+   },
+   {
+    "geval": "onleesbare bron en tegelijk een gewijzigde kopie",
+    "verwacht": "exit 3 én de sha256-melding blijft zichtbaar",
+    "gemeten": "exit 3 met melding (de963856d)"
+   },
+   {
+    "geval": "online: de bronbranch loopt voor op de bron-commit",
+    "verwacht": "exit 0 met ::warning::",
+    "gemeten": "exit 0 met ::warning::"
+   },
+   {
+    "geval": "online leest de volledige bron-commit, alleen via https://raw.githubusercontent.com/lvos04/ai-server-manager/",
+    "verwacht": "ja",
+    "gemeten": "ja"
+   }
+  ],
+  "evidence": [
+   {
+    "geval": "geldige regel; C1.3-ALG-02; REVIEW-jelly-leon-web-contract-1.3; 'Niet getest' bij 'Niet gestart'; iGPU-waarde met hardwarevoorbehoud",
+    "verwacht": "toegestaan",
+    "gemeten": "0 meldingen (alle vijf)"
+   },
+   {
+    "geval": "lege validatie; alleen een spatie; scheidingsteken zonder spatie; afsluitend scheidingsteken; kleine letters; vrije tekst in validatie; validatie als lijst; dubbele waarde",
+    "verwacht": "afgekeurd",
+    "gemeten": "afgekeurd (alle acht)"
+   },
+   {
+    "geval": "de twee verboden statussen (op een contractpunt en op een testrij); status met spatie erachter; besluit-status op een contractpunt; Geblokkeerd zonder blokkade",
+    "verwacht": "afgekeurd",
+    "gemeten": "afgekeurd (alle zes)"
+   },
+   {
+    "geval": "blokkade-reden niet in validatie; blokkade-reden buiten de vaste lijst",
+    "verwacht": "afgekeurd",
+    "gemeten": "afgekeurd (beide)"
+   },
+   {
+    "geval": "Testmatrix-waarde op een contractpunt; beide Testmatrix-waarden samen; 'Niet getest' bij 'Bezig'; 'Niet gestart' met een testuitkomst; iGPU-waarde zonder hardwarevoorbehoud",
+    "verwacht": "afgekeurd",
+    "gemeten": "afgekeurd (alle vijf)"
+   },
+   {
+    "geval": "contractpunt of review van een andere repo; niet-bestaand contractpunt; C1.2-punt van een andere repo; contractpunt zonder de gekopieerde lijst",
+    "verwacht": "afgekeurd",
+    "gemeten": "afgekeurd (alle vijf)"
+   },
+   {
+    "geval": "extra veld; onmogelijke datum; verkeerde repo; leeg bewijs; niet-bestaande commit in bewijs; dubbel id; lege lijst; geen lijst; EVIDENCE.json ontbreekt",
+    "verwacht": "afgekeurd",
+    "gemeten": "afgekeurd (alle negen)"
+   },
+   {
+    "geval": "reden in blokkade in een afwijkende schrijfwijze (kleine letters, zonder spatie, zonder haakjes, dubbele spatie, regeleinde, aaneengeschreven, haakje niet gesloten), elk met en zonder de juiste waarde in validatie",
+    "verwacht": "afgekeurd",
+    "gemeten": "nul meldingen op a95995b08 (5 van 5 verkend); afgekeurd op de963856d (14 van 14)"
+   },
+   {
+    "geval": "gewone lopende tekst in blokkade ('is nog niet gevalideerd op GitHub'; 'Niet gevalideerd door een tweede lezer.') en een juiste reden die ook in validatie staat",
+    "verwacht": "toegestaan",
+    "gemeten": "0 meldingen (alle drie, de963856d)"
+   },
+   {
+    "geval": "de echte EVIDENCE.json van de repo met de aangescherpte controle",
+    "verwacht": "toegestaan",
+    "gemeten": "0 meldingen"
+   }
+  ]
+ },
+ "gevonden_en_gerepareerd": [
+  {
+   "nr": 1,
+   "punt": "C1.3-JLW-02",
+   "commit": "53a5dd99e",
+   "gevonden": "De regel 'elke NIET GEVALIDEERD (…) in blokkade staat ook in validatie' herkende alleen de exacte schrijfwijze. Een bijna-goede vorm (kleine letters, zonder spatie, dubbele spatie, regeleinde, zonder haakjes) gaf nul meldingen: een blokkade kon zo ongemerkt buiten validatie blijven.",
+   "gerepareerd": "tools/jelly-leon-web/check_fork_consistency.py keurt zo'n afwijkende schrijfwijze nu zelf af (fail-closed) en toont het fragment letterlijk; gewone lopende tekst blijft toegestaan. 20 nieuwe testgevallen in tools/jelly-leon-web/tests/test_evidence_contract_1_3.py.",
+   "opmerking": "Strenger dan de referentietest in ai-server-manager, die dezelfde exacte vorm zoekt; geen regel van de bestaande EVIDENCE.json hoefde hiervoor te wijzigen."
+  },
+  {
+   "nr": 2,
+   "punt": "C1.3-JLW-01",
+   "commit": "de963856d",
+   "gevonden": "ADR-0010 en ADR-0012 zeggen dat de online-stap met exit 3 faalt als de bron niet meer leesbaar is. Gemeten: raw.githubusercontent.com antwoordt met 404 op een niet-bestaande repo en op een niet-bestaande commit, en de drifttest meldde dan 'kopie niet in orde' (exit 1), alsof de kopieën gewijzigd waren. Hetzelfde bij een lokale bronmap zonder de bron-commit. Nooit 'in orde', maar wel de verkeerde oorzaak.",
+   "gerepareerd": "tools/jelly-leon-web/contract_drift.py: is op de bron-commit geen enkel vastgezet bestand te vinden, dan is dat een omgevingsfout (exit 3) met een duidelijke melding; ontbreekt een deel, dan blijft dat drift (exit 1); wat de sha256-pin offline al vaststelde blijft ook bij exit 3 zichtbaar. 4 nieuwe testgevallen in tools/jelly-leon-web/tests/test_contract_drift.py.",
+   "opmerking": "Dat een privé gemaakte repo zonder token hetzelfde 404-antwoord geeft, is hier niet te meten; gemeten is 404 voor een niet-bestaande repo en voor een niet-bestaande commit."
+  }
+ ],
+ "gevonden_niet_gerepareerd": [
+  {
+   "punt": "programmaregel 'nooit een modelnaam in commits' (contract §12 zelf verbiedt die alleen in code en docs en laat de attributie aan de lopende sessie)",
+   "gevonden": "48 van de 224 eigen commits van de fork (van 7c0807680 tot en met 2865bf3e6, waaronder de vier commits van ronde 1.3: 328a7c1c8, c95e7694d, 8b86e0994 en 2865bf3e6) dragen een Co-Authored-By-regel met een modelnaam erin. De vier nieuwste commits (c0cd4450c, a95995b08, 53a5dd99e, de963856d) hebben de voorgeschreven regel.",
+   "waarom_niet": "Herstellen vraagt het herschrijven van gepushte historie en een force-push; beide zijn in dit programma verboden. Code en documenten van de fork zelf bevatten geen modelnaam.",
+   "voor_wie": "besluit van de gebruiker/orkestratie"
+  },
+  {
+   "punt": "§12 en documentatieregels",
+   "gevonden": "De door de orkestratie aangeleverde programmadocumenten (docs/platform-v2/00_START…, 01_ARCHITECTUUR…, 02_BOUWPLANNEN…) en BOUWVERIFICATIE_P4-0.md noemen namen van AI-producten en paden van de bouwmachine.",
+   "waarom_niet": "Aangeleverde programmabestanden die in elke repo gelijk horen te zijn; een lokale aanpassing zou ze uit de pas laten lopen.",
+   "voor_wie": "orkestratie"
+  }
+ ],
+ "beoordeeld_zonder_wijziging": [
+  "Contract 1.3 §1–§13 voor deze repo: alleen C1.3-JLW-01, C1.3-JLW-02 en C1.3-ALG-01…03 zijn van toepassing. C1.3-ALG-04 (healthcheck in de image) en C1.3-ALG-05 (Peil) niet: de webclient heeft geen eigen image, geen eigen Custom App en geen eigen dienst of API (dus ook geen all-in-one image en geen OpenAPI).",
+  "EXCEL_TAKEN.json (153 regels) heeft geen eigen regel voor contract 1.3; de 1.3-punten staan in CONTRACT_1.3_CONFORMITEIT.md §0 en §10 en zijn als C1.3-regels in EVIDENCE.json opgenomen.",
+  "Veiligheid, eigen bestanden van de fork: geen shell=True, geen 'sh -c', geen sudo, geen Docker-socket; images en actions op digest/SHA, geen latest-tags (de enige treffers zijn de controles die ze verbieden); geen privé-adressen; de enige token-achtige waarde is de gedocumenteerde testwaarde in tests/test_sync_workflow.py; eigen workflows met 'permissions: contents: read'.",
+  "Eerlijkheid: geen regel in EVIDENCE.json heeft een van de twee verboden statussen; simulatorresultaten staan als Sim-getest/Sim-geslaagd/Sim-mislukt, echte NAS en apparaten als NIET GEVALIDEERD.",
+  "Docs: Nederlands; deploy/truenas/CUSTOM_APP.md verwijst voor installatie naar de Custom App van jelly-leon (geen terminal, geen YAML) en gebruikt alleen plaatshouders zoals <NAS-adres>; geen voorbeeldwaarden als echte NAS-waarden.",
+  "upstream .gitattributes heeft '*.md text': een checkout met CRLF-regeleinden laat de drifttest falen (fail-closed, exit 1); geen wijziging nodig."
+ ],
+ "niet_gedaan": [
+  "Niets op een echte NAS, op echte apparaten of met echte accounts: NIET GEVALIDEERD (echte NAS), NIET GEVALIDEERD (hardware).",
+  "Node-stappen en E2E zijn gemeten op a95995b08; de twee reparaties raken alleen Python-tools onder tools/jelly-leon-web. De volledige keten op de gerepareerde stand draait in GitHub Actions (zie c13-review-github-ci-run-42972708505.json in deze map).",
+  "Geen historie herschreven, geen force-push, geen PR."
+ ],
+ "validatie": "Unit-getest (forktools) en Sim-getest (officiële images op digest + headless Chromium); echte NAS: NIET GEVALIDEERD (echte NAS); echte apparaten: NIET GEVALIDEERD (hardware)"
+}

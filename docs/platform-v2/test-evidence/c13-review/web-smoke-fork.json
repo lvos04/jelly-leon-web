@@ -1,0 +1,297 @@
+{
+  "test": "web-client-smoketest",
+  "modus": "fork",
+  "server_image": "docker.io/jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771",
+  "basis_url": "http://127.0.0.1:38097",
+  "gestart_utc": "2026-11-11T06:14:30Z",
+  "beeindigd_utc": "2026-11-11T06:15:20Z",
+  "resultaat": "geslaagd",
+  "aantal_stappen": 45,
+  "geslaagd": 45,
+  "validatie": "Sim-getest (headless Chromium + officiële serverimage; geen echte apparaten, D15)",
+  "feiten": {
+    "dist_index_sha256": "abe2cfc1e097be1e9810b7863f40255e96cd737f2f6ae4117b3a3d5956ad5be0",
+    "dist_bestanden": 2348,
+    "server_productnaam": "Jellyfin Server",
+    "server_versie": "12.4.0",
+    "web_index_sha256": "abe2cfc1e097be1e9810b7863f40255e96cd737f2f6ae4117b3a3d5956ad5be0",
+    "testitem_naam": "01 - Sinus 440 Hz",
+    "layouts": [
+      "modern",
+      "legacy"
+    ],
+    "browser": "Chromium 153.0.8010.12 (headless)"
+  },
+  "stappen": [
+    {
+      "stap": "server gezond",
+      "geslaagd": true,
+      "detail": "GET /health → Healthy",
+      "tijd_utc": "2026-11-11T06:14:36Z"
+    },
+    {
+      "stap": "technische identiteit ongewijzigd",
+      "geslaagd": true,
+      "detail": "ProductName='Jellyfin Server', Version='12.4.0' (verwacht 12.4.0)",
+      "tijd_utc": "2026-11-11T06:14:36Z"
+    },
+    {
+      "stap": "fork-build wordt geserveerd",
+      "geslaagd": true,
+      "detail": "HTTP 200; /web/index.html = dist/index.html",
+      "tijd_utc": "2026-11-11T06:14:36Z"
+    },
+    {
+      "stap": "zichtbare naam 'Jelly Leon' (fork: de enige merkwijziging, JLW-0002)",
+      "geslaagd": true,
+      "detail": "<title> = 'Jelly Leon'; application-name = 'Jelly Leon'; manifest name/short_name = 'Jelly Leon'/'Jelly Leon' (manifest HTTP 200)",
+      "tijd_utc": "2026-11-11T06:14:36Z"
+    },
+    {
+      "stap": "eerste-startwizard (API)",
+      "geslaagd": true,
+      "detail": "HTTP [204, 200, 204, 204, 204]",
+      "tijd_utc": "2026-11-11T06:14:37Z"
+    },
+    {
+      "stap": "beheerder logt in via API",
+      "geslaagd": true,
+      "detail": "HTTP 200",
+      "tijd_utc": "2026-11-11T06:14:37Z"
+    },
+    {
+      "stap": "bibliotheek 'Muziek' aanmaken",
+      "geslaagd": true,
+      "detail": "HTTP 204",
+      "tijd_utc": "2026-11-11T06:14:37Z"
+    },
+    {
+      "stap": "bibliotheekscan vindt het testnummer",
+      "geslaagd": true,
+      "detail": "item dbd1b4c93b1c7df92633765df6054ff3",
+      "tijd_utc": "2026-11-11T06:14:40Z"
+    },
+    {
+      "stap": "kinderprofiel zonder bibliotheektoegang",
+      "geslaagd": true,
+      "detail": "aanmaken HTTP 200, beleid HTTP 204 (EnableAllFolders=false)",
+      "tijd_utc": "2026-11-11T06:14:40Z"
+    },
+    {
+      "stap": "zoeken respecteert server-ACL (API)",
+      "geslaagd": true,
+      "detail": "beheerder 1 resultaat, kinderprofiel 0 (verwacht 1 / 0)",
+      "tijd_utc": "2026-11-11T06:14:41Z"
+    },
+    {
+      "stap": "zonder token geweigerd",
+      "geslaagd": true,
+      "detail": "GET /Users/<id> zonder token → HTTP 401 (verwacht 401)",
+      "tijd_utc": "2026-11-11T06:14:41Z"
+    },
+    {
+      "stap": "legacy-authenticatie uit (12.x-standaard, BG-01)",
+      "geslaagd": true,
+      "detail": "X-Emby-Token → HTTP 401, api_key= → HTTP 401, X-Emby-Authorization → HTTP 401, Authorization → HTTP 200 (verwacht 401/401/401/200)",
+      "tijd_utc": "2026-11-11T06:14:41Z"
+    },
+    {
+      "stap": "[Modern] aanmeldpagina in het Nederlands (browser nl-NL)",
+      "geslaagd": true,
+      "detail": "gevonden: Meld je aan, Aanmelden, Gebruiker, Wachtwoord",
+      "tijd_utc": "2026-11-11T06:14:43Z"
+    },
+    {
+      "stap": "[Modern] fout wachtwoord geweigerd (negatieve test)",
+      "geslaagd": true,
+      "detail": "melding zichtbaar, url /login?serverid=fee357be0cad49a98485c5e9015fbae3&url=%2Fhome",
+      "tijd_utc": "2026-11-11T06:14:45Z"
+    },
+    {
+      "stap": "[Modern] inloggen → startscherm met bibliotheek",
+      "geslaagd": true,
+      "detail": "url /home",
+      "tijd_utc": "2026-11-11T06:14:47Z"
+    },
+    {
+      "stap": "[Modern] layout actief (standaard)",
+      "geslaagd": true,
+      "detail": "MUI-AppBar: 1, opgeslagen layout: None",
+      "tijd_utc": "2026-11-11T06:14:47Z"
+    },
+    {
+      "stap": "[Modern] technische identiteit webclient ongewijzigd ('Jellyfin Web')",
+      "geslaagd": true,
+      "detail": "/Sessions (HTTP 200): Jellyfin Web 12.4.0; localStorage jellyfin_credentials aanwezig",
+      "tijd_utc": "2026-11-11T06:14:47Z"
+    },
+    {
+      "stap": "[Modern] zoeken vindt het testnummer (UI)",
+      "geslaagd": true,
+      "detail": "zoekterm 'Sinus' → 'Sinus 440 Hz'",
+      "tijd_utc": "2026-11-11T06:14:47Z"
+    },
+    {
+      "stap": "[Modern] detailpagina → afspelen start een stream",
+      "geslaagd": true,
+      "detail": "GET /Audio/<id>/… → HTTP 200 (verwacht 200/206)",
+      "tijd_utc": "2026-11-11T06:14:47Z"
+    },
+    {
+      "stap": "[Modern] kinderprofiel ziet de titel niet in zoekresultaten (UI)",
+      "geslaagd": true,
+      "detail": "melding 'Geen resultaten gevonden', geen testnummer zichtbaar",
+      "tijd_utc": "2026-11-11T06:14:50Z"
+    },
+    {
+      "stap": "[Modern] startscherm 360px zonder horizontale overloop",
+      "geslaagd": true,
+      "detail": "scrollWidth 360 px, venster 360 px; fork-modern-360-startscherm.jpg",
+      "tijd_utc": "2026-11-11T06:14:50Z"
+    },
+    {
+      "stap": "[Modern] startscherm 390px zonder horizontale overloop",
+      "geslaagd": true,
+      "detail": "scrollWidth 390 px, venster 390 px; fork-modern-390-startscherm.jpg",
+      "tijd_utc": "2026-11-11T06:14:51Z"
+    },
+    {
+      "stap": "[Modern] startscherm 768px zonder horizontale overloop",
+      "geslaagd": true,
+      "detail": "scrollWidth 768 px, venster 768 px; fork-modern-768-startscherm.jpg",
+      "tijd_utc": "2026-11-11T06:14:51Z"
+    },
+    {
+      "stap": "[Modern] startscherm 1440px zonder horizontale overloop",
+      "geslaagd": true,
+      "detail": "scrollWidth 1440 px, venster 1440 px; fork-modern-1440-startscherm.jpg",
+      "tijd_utc": "2026-11-11T06:14:52Z"
+    },
+    {
+      "stap": "[Legacy] aanmeldpagina in het Nederlands (browser nl-NL)",
+      "geslaagd": true,
+      "detail": "gevonden: Meld je aan, Aanmelden, Gebruiker, Wachtwoord",
+      "tijd_utc": "2026-11-11T06:14:54Z"
+    },
+    {
+      "stap": "[Legacy] fout wachtwoord geweigerd (negatieve test)",
+      "geslaagd": true,
+      "detail": "melding zichtbaar, url /login?serverid=fee357be0cad49a98485c5e9015fbae3&url=%2Fhome",
+      "tijd_utc": "2026-11-11T06:14:56Z"
+    },
+    {
+      "stap": "[Legacy] inloggen → startscherm met bibliotheek",
+      "geslaagd": true,
+      "detail": "url /home",
+      "tijd_utc": "2026-11-11T06:14:58Z"
+    },
+    {
+      "stap": "[Legacy] layout actief (desktop-legacy)",
+      "geslaagd": true,
+      "detail": "MUI-AppBar: 0, opgeslagen layout: 'desktop-legacy'",
+      "tijd_utc": "2026-11-11T06:14:58Z"
+    },
+    {
+      "stap": "[Legacy] technische identiteit webclient ongewijzigd ('Jellyfin Web')",
+      "geslaagd": true,
+      "detail": "/Sessions (HTTP 200): Jellyfin Web 12.4.0; localStorage jellyfin_credentials aanwezig",
+      "tijd_utc": "2026-11-11T06:14:58Z"
+    },
+    {
+      "stap": "[Legacy] zoeken vindt het testnummer (UI)",
+      "geslaagd": true,
+      "detail": "zoekterm 'Sinus' → 'Sinus 440 Hz'",
+      "tijd_utc": "2026-11-11T06:14:58Z"
+    },
+    {
+      "stap": "[Legacy] detailpagina → afspelen start een stream",
+      "geslaagd": true,
+      "detail": "GET /Audio/<id>/… → HTTP 200 (verwacht 200/206)",
+      "tijd_utc": "2026-11-11T06:14:58Z"
+    },
+    {
+      "stap": "[Legacy] kinderprofiel ziet de titel niet in zoekresultaten (UI)",
+      "geslaagd": true,
+      "detail": "melding 'Geen resultaten gevonden', geen testnummer zichtbaar",
+      "tijd_utc": "2026-11-11T06:15:00Z"
+    },
+    {
+      "stap": "[Legacy] startscherm 360px zonder horizontale overloop",
+      "geslaagd": true,
+      "detail": "scrollWidth 360 px, venster 360 px; fork-legacy-360-startscherm.jpg",
+      "tijd_utc": "2026-11-11T06:15:01Z"
+    },
+    {
+      "stap": "[Legacy] startscherm 390px zonder horizontale overloop",
+      "geslaagd": true,
+      "detail": "scrollWidth 390 px, venster 390 px; fork-legacy-390-startscherm.jpg",
+      "tijd_utc": "2026-11-11T06:15:01Z"
+    },
+    {
+      "stap": "[Legacy] startscherm 768px zonder horizontale overloop",
+      "geslaagd": true,
+      "detail": "scrollWidth 768 px, venster 768 px; fork-legacy-768-startscherm.jpg",
+      "tijd_utc": "2026-11-11T06:15:02Z"
+    },
+    {
+      "stap": "[Legacy] startscherm 1440px zonder horizontale overloop",
+      "geslaagd": true,
+      "detail": "scrollWidth 1440 px, venster 1440 px; fork-legacy-1440-startscherm.jpg",
+      "tijd_utc": "2026-11-11T06:15:03Z"
+    },
+    {
+      "stap": "herstart: server gezond, juiste webclient",
+      "geslaagd": true,
+      "detail": "HTTP 200; fork-build geserveerd; titel 'Jelly Leon' aanwezig",
+      "tijd_utc": "2026-11-11T06:15:07Z"
+    },
+    {
+      "stap": "herstart: gegevens behouden",
+      "geslaagd": true,
+      "detail": "server-ID gelijk; beheerder logt in met hetzelfde wachtwoord: HTTP 200; testnummer met hetzelfde ID: HTTP 200",
+      "tijd_utc": "2026-11-11T06:15:08Z"
+    },
+    {
+      "stap": "herstart: stream en server-ACL werken",
+      "geslaagd": true,
+      "detail": "GET /Audio/<id>/stream → HTTP 200, 88244 bytes; kinderprofiel logt in (HTTP 200) en vindt 0 resultaten (verwacht 0)",
+      "tijd_utc": "2026-11-11T06:15:08Z"
+    },
+    {
+      "stap": "terugzetten naar stock-webclient (zelfde /config): server gezond, juiste webclient",
+      "geslaagd": true,
+      "detail": "HTTP 200; stock-webclient van de image geserveerd; titel 'Jellyfin' aanwezig",
+      "tijd_utc": "2026-11-11T06:15:13Z"
+    },
+    {
+      "stap": "terugzetten naar stock-webclient (zelfde /config): gegevens behouden",
+      "geslaagd": true,
+      "detail": "server-ID gelijk; beheerder logt in met hetzelfde wachtwoord: HTTP 200; testnummer met hetzelfde ID: HTTP 200",
+      "tijd_utc": "2026-11-11T06:15:14Z"
+    },
+    {
+      "stap": "terugzetten naar stock-webclient (zelfde /config): stream en server-ACL werken",
+      "geslaagd": true,
+      "detail": "GET /Audio/<id>/stream → HTTP 200, 88244 bytes; kinderprofiel logt in (HTTP 200) en vindt 0 resultaten (verwacht 0)",
+      "tijd_utc": "2026-11-11T06:15:14Z"
+    },
+    {
+      "stap": "weer vooruit naar de fork-build (zelfde /config): server gezond, juiste webclient",
+      "geslaagd": true,
+      "detail": "HTTP 200; fork-build geserveerd; titel 'Jelly Leon' aanwezig",
+      "tijd_utc": "2026-11-11T06:15:19Z"
+    },
+    {
+      "stap": "weer vooruit naar de fork-build (zelfde /config): gegevens behouden",
+      "geslaagd": true,
+      "detail": "server-ID gelijk; beheerder logt in met hetzelfde wachtwoord: HTTP 200; testnummer met hetzelfde ID: HTTP 200",
+      "tijd_utc": "2026-11-11T06:15:19Z"
+    },
+    {
+      "stap": "weer vooruit naar de fork-build (zelfde /config): stream en server-ACL werken",
+      "geslaagd": true,
+      "detail": "GET /Audio/<id>/stream → HTTP 200, 88244 bytes; kinderprofiel logt in (HTTP 200) en vindt 0 resultaten (verwacht 0)",
+      "tijd_utc": "2026-11-11T06:15:20Z"
+    }
+  ]
+}
