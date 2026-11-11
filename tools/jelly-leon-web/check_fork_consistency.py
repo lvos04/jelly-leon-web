@@ -19,7 +19,9 @@ Controles:
     commit die in `bewijs` genoemd wordt bestaat echt in deze repo (commits van andere repos schrijf je als
     `<repo>@<sha>`). Fail-closed: een ontbrekend of leeg EVIDENCE.json is een overtreding (§11: elke repo houdt het
     bij), nooit "in orde". Elke `NIET GEVALIDEERD (…)` die in `blokkade` staat, is een waarde uit de vaste lijst en
-    staat ook in `validatie` (geen stille blokkade); `bijgewerkt` is een echte kalenderdatum.
+    staat ook in `validatie` (geen stille blokkade); een afwijkende schrijfwijze van zo'n reden (kleine letters,
+    zonder spatie of zonder haakjes) is zelf een fout, omdat die anders nooit met `validatie` vergeleken wordt;
+    `bijgewerkt` is een echte kalenderdatum.
     Nieuw in 1.3: `Niet getest` alleen bij status `Niet gestart` (en nooit naast een testuitkomst; omgekeerd draagt
     een rij `Niet gestart` geen testuitkomst); `Intel-iGPU-getest (ontwikkelmachine)` alleen samen met
     `NIET GEVALIDEERD (hardware)` (de GPU's van de NAS blijven niet gevalideerd); naast Excel-ID's mogen contractpunten
@@ -88,6 +90,10 @@ COMMIT_REF_RE = re.compile(r"(?<![0-9A-Za-z:@/\-])([0-9a-f]{7,40})(?![0-9A-Za-z]
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # "NIET GEVALIDEERD (…)" in vrije tekst (blokkade): moet ook als lijstwaarde in `validatie` staan.
 NIET_GEVALIDEERD_RE = re.compile(r"NIET GEVALIDEERD \([^)]*\)")
+# Dezelfde reden in een afwijkende schrijfwijze ("niet gevalideerd (echte NAS)", "NIET GEVALIDEERD(hardware)",
+# "NIET GEVALIDEERD op de NAS") zou de regel hierboven stil omzeilen. Als lijstwaarde bedoeld = in hoofdletters of
+# met een haakje erachter; gewone lopende tekst ("is nog niet gevalideerd op GitHub") valt daar niet onder.
+NIET_GEVALIDEERD_LOS_RE = re.compile(r"niet\s*gevalideerd", re.IGNORECASE)
 ID_RE = re.compile(r"^(B\d{2}-\d{3}|I\d{2}-\d{2}-\d{2}|A\d{2}(-\d+)?|APP-\d{2}|EX\d{2}|JLT-\d{2}|D\d{2})$")
 # Contractpunten en reviews (§11, 1.3; K9): eigen regels naast de Excel-ID's, statussen van het blad Werkpakketten.
 CONTRACTPUNT_13_RE = re.compile(r"^C1\.3-([A-Z]+)-(\d{2})$")
@@ -372,19 +378,38 @@ def check_validatie_bij_status(where: str, status: object, validatie: object) ->
 
 
 def check_blokkade_in_validatie(where: str, validatie: object, blokkade: object) -> list[str]:
-    """Een `NIET GEVALIDEERD (…)` in de blokkade is een lijstwaarde en staat ook in `validatie` (§11, 1.3)."""
+    """Een `NIET GEVALIDEERD (…)` in de blokkade is een lijstwaarde en staat ook in `validatie` (§11, 1.3).
+
+    Een bijna-goede schrijfwijze (kleine letters met haakje, hoofdletters zonder spatie of zonder haakjes) is een
+    fout: de reden is dan als lijstwaarde bedoeld, maar zou de vergelijking met `validatie` ontlopen.
+    """
     if not isinstance(validatie, str) or not isinstance(blokkade, str):
         return []
     parts = set(validatie.split(VALIDATIE_SEP))
+    choices = " | ".join(v for v in VALIDATIE_WAARDEN if v.startswith("NIET GEVALIDEERD"))
     errors: list[str] = []
     for value in dict.fromkeys(NIET_GEVALIDEERD_RE.findall(blokkade)):
         if value not in VALIDATIE_WAARDEN:
-            choices = " | ".join(v for v in VALIDATIE_WAARDEN if v.startswith("NIET GEVALIDEERD"))
             errors.append(f"{where}: blokkade noemt '{value}', dat is geen waarde uit de vaste lijst van §11 "
                           f"(kies uit {choices}; toelichting in 'opmerking')")
         elif value not in parts:
             errors.append(f"{where}: blokkade noemt '{value}', maar validatie niet (zet het als lijstwaarde in "
                           "'validatie')")
+    # Fail-closed: een bijna-goede schrijfwijze wordt hierboven niet herkend en zou dus nooit met `validatie`
+    # vergeleken worden; die is daarom zelf een fout.
+    exact = [match.span() for match in NIET_GEVALIDEERD_RE.finditer(blokkade)]
+    afwijkend: list[str] = []
+    for match in NIET_GEVALIDEERD_LOS_RE.finditer(blokkade):
+        if any(start <= match.start() < end for start, end in exact):
+            continue  # exacte vorm: hierboven beoordeeld
+        rest = blokkade[match.end():]
+        if match.group(0).isupper() or rest.lstrip().startswith("("):
+            haakje = re.match(r"\s*\([^)]*\)?", rest)
+            afwijkend.append(match.group(0) + (haakje.group(0) if haakje else ""))
+    for fragment in dict.fromkeys(afwijkend):
+        # !r: maakt ook een dubbele spatie of een regeleinde in de afwijkende schrijfwijze zichtbaar.
+        errors.append(f"{where}: blokkade schrijft {fragment!r} anders dan de vaste lijst van §11; zo wordt de reden "
+                      f"niet met 'validatie' vergeleken (schrijf exact {choices})")
     return errors
 
 

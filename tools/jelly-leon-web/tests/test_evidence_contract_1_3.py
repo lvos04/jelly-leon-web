@@ -3,7 +3,8 @@
 Nieuw in 1.3 ten opzichte van de 1.2-controle (test_patch_register_and_consistency.py):
 - validatiewaarden `Intel-iGPU-getest (ontwikkelmachine)` en `Niet getest` (alleen bij status `Niet gestart`);
 - een lege `validatie` is nooit toegestaan, ook niet als alleen spaties;
-- elke `NIET GEVALIDEERD (…)` uit `blokkade` is een lijstwaarde en staat ook in `validatie`;
+- elke `NIET GEVALIDEERD (…)` uit `blokkade` is een lijstwaarde en staat ook in `validatie`; een afwijkende
+  schrijfwijze van zo'n reden ontloopt die vergelijking niet maar is zelf een fout;
 - contractpunten (`C1.3-<code>`, `C1.2-<code>`) en reviews (`REVIEW-jelly-leon-web-<onderwerp>`) mogen een eigen regel
   hebben, met de statussen van het blad Werkpakketten.
 De laatste test draait de controle op de echte EVIDENCE.json van deze repo (dezelfde controle als de CI-stap).
@@ -177,6 +178,59 @@ def test_elke_niet_gevalideerd_uit_blokkade_staat_in_validatie(repo):
 def test_blokkade_met_onbekende_reden_faalt(repo, reden):
     errors = fouten(repo, dict(BASIS, blokkade=f"x: {reden}"))
     assert len(errors) == 1 and f"'{reden}', dat is geen waarde uit de vaste lijst" in errors[0], errors
+
+
+@pytest.mark.parametrize(
+    "blokkade",
+    [
+        "echte NAS: niet gevalideerd (echte NAS)",
+        "echte NAS: Niet gevalideerd (echte NAS)",
+        "echte NAS: NIET GEVALIDEERD(echte NAS)",
+        "echte NAS: NIET GEVALIDEERD  (echte NAS)",
+        "echte NAS: NIET GEVALIDEERD\n(echte NAS)",
+        "echte NAS: NIET GEVALIDEERD (echte NAS",
+        "NIET GEVALIDEERD op de echte NAS",
+        "NIETGEVALIDEERD (echte NAS)",
+    ],
+    ids=["kleine-letters", "alleen-beginhoofdletter", "zonder-spatie", "dubbele-spatie", "regeleinde",
+         "haakje-niet-gesloten", "zonder-haakjes", "aaneen"],
+)
+@pytest.mark.parametrize("validatie", ["Sim-getest", "Sim-getest; NIET GEVALIDEERD (echte NAS)"])
+def test_afwijkende_schrijfwijze_in_blokkade_ontloopt_de_controle_niet(repo, blokkade, validatie):
+    """Tegenproef van de review: een bijna-goede reden werd niet herkend en dus nooit met `validatie` vergeleken.
+
+    Ook met de juiste waarde in `validatie` blijft het een fout: de blokkade zelf moet de vaste schrijfwijze dragen.
+    """
+    errors = fouten(repo, dict(BASIS, validatie=validatie, blokkade=blokkade))
+    assert len(errors) == 1 and "anders dan de vaste lijst van §11" in errors[0], errors
+    assert "NIET GEVALIDEERD (echte NAS) | NIET GEVALIDEERD (hardware)" in errors[0]
+
+
+def test_afwijkende_schrijfwijze_naast_een_juiste_reden_wordt_apart_gemeld(repo):
+    entry = dict(
+        BASIS,
+        validatie="Sim-getest",
+        blokkade="tv's: NIET GEVALIDEERD (hardware); NAS: niet gevalideerd (echte NAS); NIET GEVALIDEERD(account)",
+    )
+    errors = fouten(repo, entry)
+    assert len(errors) == 3, errors
+    assert "blokkade noemt 'NIET GEVALIDEERD (hardware)', maar validatie niet" in errors[0]
+    assert "blokkade schrijft 'niet gevalideerd (echte NAS)' anders" in errors[1]
+    assert "blokkade schrijft 'NIET GEVALIDEERD(account)' anders" in errors[2]
+
+
+@pytest.mark.parametrize(
+    "blokkade",
+    [
+        "upstream-sync.yml is nog niet gevalideerd op GitHub",
+        "Niet gevalideerd op echte apparaten; dat hoort bij jelly-leon-clients",
+        "wacht op de NAS: NIET GEVALIDEERD (echte NAS); verder niet gevalideerd op een tweede NAS",
+    ],
+    ids=["lopende-tekst", "zin-met-beginhoofdletter", "naast-exacte-reden"],
+)
+def test_lopende_tekst_in_blokkade_is_geen_lijstwaarde(repo, blokkade):
+    """Gewone tekst (kleine letters, geen haakje) is geen poging tot een lijstwaarde en blijft toegestaan."""
+    assert fouten(repo, dict(BASIS, validatie="Sim-getest; NIET GEVALIDEERD (echte NAS)", blokkade=blokkade)) == []
 
 
 # -------------------------------------------------------------------------------- contractpunten en reviews
