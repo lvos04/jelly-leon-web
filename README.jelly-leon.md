@@ -24,6 +24,12 @@ GPL-2.0-or-later (zie [`LICENSE`](LICENSE)); gebaseerd op Jellyfin, met dank aan
   [`c13-hervatting-herverificatie.json`](docs/platform-v2/test-evidence/c13-hervatting-herverificatie.json) en
   [`c13-github-ci-run-42812887508.json`](docs/platform-v2/test-evidence/c13-github-ci-run-42812887508.json).
   De algemene punten C1.3-ALG-01…03 staan nu ook als eigen regels in `EVIDENCE.json`.
+- Onafhankelijke review op 2026-11-11: alles opnieuw gedraaid zoals de CI (forkregels, lint, stylelint, typecheck,
+  164 unit-tests, productiebuild, smoketest fork 45/45 en stock 39/39, upgradeproef 50/50 — alles in de simulator). Twee
+  reparaties in de forktools: een onleesbare bron is voor de drifttest nu een omgevingsfout (exit 3) in plaats van
+  "drift", en een afwijkende schrijfwijze van `NIET GEVALIDEERD (…)` in `blokkade` ontloopt de controle niet meer
+  (nu 250 tool-tests) — zie
+  [`c13-review-qa.json`](docs/platform-v2/test-evidence/c13-review/c13-review-qa.json).
 - Geen functionele wijziging aan de webclient; niets op een echte NAS getest.
 
 ## Stand P4-0 (B03-014 webdeel, 2026-11-09) — [`ADR-0011`](docs/adr/ADR-0011-upgrade-12x-webclient.md)

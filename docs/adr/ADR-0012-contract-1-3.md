@@ -74,6 +74,17 @@
 
 - De job *forkregels* faalt als een kopie afwijkt of de pin niet klopt; een nieuwere bronstand geeft alleen een
   waarschuwing. Wordt `ai-server-manager` ooit privé, dan faalt de online-stap terecht met exit 3 (zie ADR-0010).
+- **Aanvulling uit de onafhankelijke review (2026-11-11, commits `53a5dd99e` en `de963856d`):**
+  1. De zin hierboven over exit 3 klopte nog niet. Gemeten: GitHub antwoordt met 404 op elk bestand als de repo of de
+     commit daar niet te lezen is, en de drifttest meldde dat als drift (exit 1), alsof de kopieën gewijzigd waren. Nu
+     geldt: is op de bron-commit geen enkel vastgezet bestand te vinden, dan is dat een omgevingsfout (exit 3);
+     ontbreekt een deel, dan blijft dat drift (exit 1). Hetzelfde voor een `--bron-map` zonder de bron-commit. Wat de
+     sha256-pin offline al vaststelde, blijft ook bij exit 3 zichtbaar. Nooit "in orde".
+  2. De regel "elke `NIET GEVALIDEERD (…)` uit `blokkade` staat ook in `validatie`" zocht alleen de exacte
+     schrijfwijze. Een bijna-goede vorm (kleine letters, zonder spatie of haakjes, een regeleinde ertussen) gaf nul
+     meldingen en ontliep zo de vergelijking. Zo'n vorm is nu zelf een fout; gewone lopende tekst ("is nog niet
+     gevalideerd op GitHub") blijft toegestaan. Dit is strenger dan §11 letterlijk vraagt (veiligste lezing).
+  Bewijs: [`c13-review-qa.json`](../platform-v2/test-evidence/c13-review/c13-review-qa.json).
 - Het bewijs is strenger: een regel met `Niet getest` en een testuitkomst, een iGPU-bewijs zonder hardwarevoorbehoud,
   een zelfbedachte `NIET GEVALIDEERD`-reden of een contractpunt van een andere repo laat de CI falen.
 - Gemelde contractpunten (veiligste lezing gekozen, ook als contract_issue gemeld):
