@@ -20,7 +20,7 @@ import yaml
 from conftest import REPO_ROOT, git
 
 WORKFLOW = REPO_ROOT / ".github/workflows/upstream-sync.yml"
-TOKEN = "ghp_dummyTokenVoorDeTest0123456789abcdef"
+TOKEN = "neppe-testwaarde-pushtoken-jlw-Z05-q7Xk2Rm9Vt4Lp8Wd"
 
 
 def workflow() -> dict:

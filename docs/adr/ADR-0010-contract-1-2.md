@@ -28,7 +28,7 @@
    force-push). Doorzocht: de fork-eigen commits (`245239f61`, `3363f135e`, `94d2fd06e` en `6fde14bf6..HEAD` zonder
    de upstream-merge) op privé-LAN-adressen, thuismappen, sleutels/tokens en e-mailadressen. Bevindingen voor de
    gebruiker: geen echte geheimen, LAN-adressen of thuismappen; wel een **nep-token** met GitHub-voorvoegsel en
-   PAT-lengte in `tools/jelly-leon-web/tests/test_sync_workflow.py` (`ghp_dummy…`, testwaarde voor de
+   PAT-lengte in `tools/jelly-leon-web/tests/test_sync_workflow.py` (de nepwaarde met tokenvorm, testwaarde voor de
    redactiecontrole), dat geheimscanners kunnen melden; verder alleen `example.invalid`/`noreply`-adressen. De
    upstream-historie van jellyfin-web is van zichzelf publiek.
 4. **A4 — EVIDENCE.json streng volgens §11.** `check_fork_consistency.py` (CI-stap *forkregels*) eist nu: precies de
