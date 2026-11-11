@@ -18,6 +18,12 @@ GPL-2.0-or-later (zie [`LICENSE`](LICENSE)); gebaseerd op Jellyfin, met dank aan
 - `EVIDENCE.json` volgt §11 van 1.3 en wordt daarop gecontroleerd in de CI (C1.3-JLW-02): o.a. `Niet getest` alleen
   bij `Niet gestart`, iGPU-bewijs alleen met het hardwarevoorbehoud, elke `NIET GEVALIDEERD` uit `blokkade` ook in
   `validatie`, contractpunten alleen als ze in de gekopieerde lijst staan.
+- GitHub-CI geslaagd op de ronde (run 42812887508, 8/8 jobs, drifttest online tegen de bron). Bij de hervatting op
+  2026-11-11 is alles onafhankelijk opnieuw gemeten (drifttest offline/lokale bron/online, forkcontrole, 226 tool-tests,
+  23 tegenproeven op tijdelijke kopieën) — zie
+  [`c13-hervatting-herverificatie.json`](docs/platform-v2/test-evidence/c13-hervatting-herverificatie.json) en
+  [`c13-github-ci-run-42812887508.json`](docs/platform-v2/test-evidence/c13-github-ci-run-42812887508.json).
+  De algemene punten C1.3-ALG-01…03 staan nu ook als eigen regels in `EVIDENCE.json`.
 - Geen functionele wijziging aan de webclient; niets op een echte NAS getest.
 
 ## Stand P4-0 (B03-014 webdeel, 2026-11-09) — [`ADR-0011`](docs/adr/ADR-0011-upgrade-12x-webclient.md)
