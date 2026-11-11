@@ -2,7 +2,8 @@
 
 De eerste test is de echte drifttest op deze repo (draait in CI in de job forkregels); de rest bewijst met een nep-bron
 (tijdelijke git-repo, nep-HTTP) dat elke vorm van drift of een onbereikbare bron als fout wordt gemeld en nooit als
-"in orde".
+"in orde". Een bron die geen enkel vastgezet bestand geeft (niet meer publiek leesbaar, checkout zonder de bron-commit)
+is een omgevingsfout (exit 3); ontbreekt een deel, dan is dat drift (exit 1).
 """
 
 from __future__ import annotations
@@ -210,6 +211,63 @@ def test_main_online_onbereikbaar_is_omgevingsfout_nooit_in_orde(monkeypatch, ca
     assert contract_drift.main(["--repo", str(REPO_ROOT), "--online"]) == 3
     out = capsys.readouterr()
     assert "HTTP 503" in out.err and "in orde" not in out.out
+
+
+def test_main_online_bron_niet_zichtbaar_is_omgevingsfout_geen_drift(monkeypatch, capsys):
+    """Tegenproef van de review: GitHub antwoordt met 404 op elk bestand als de bron niet (meer) publiek leesbaar is.
+
+    Dat is een onleesbare bron (exit 3, ADR-0010/ADR-0012), geen drift van de kopieën (exit 1) en nooit "in orde".
+    """
+    calls: list[str] = []
+
+    def urlopen(url, timeout):
+        calls.append(url)
+        raise urllib.error.HTTPError(url, 404, "Not Found", None, None)
+
+    monkeypatch.setattr(contract_drift.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(contract_drift.time, "sleep", lambda _s: None)
+    assert contract_drift.main(["--repo", str(REPO_ROOT), "--online"]) == 3
+    out = capsys.readouterr()
+    assert "geen van de 3 bestanden gevonden in lvos04/ai-server-manager op 02b119cb8" in out.err
+    assert "er is niets vergeleken" in out.err and "in orde" not in out.out and "NIET IN ORDE" not in out.err
+    # 404 is een antwoord, geen netwerkfout: één verzoek per bestand, geen herhaling.
+    assert len(calls) == len(contract_drift.KOPIEEN)
+
+
+def test_main_online_een_deel_ontbreekt_in_de_bron_is_wel_drift(kopie, monkeypatch, capsys):
+    """Is de bron leesbaar maar mist hij één vastgezet bestand, dan klopt de pin niet: afwijking, exit 1."""
+    repo, texts = kopie
+    monkeypatch.setattr(contract_drift, "KOPIEEN", pins_for(texts))
+
+    def http_reader(ref, attempts=4, sleep=None):
+        return lambda rel: texts[rel] if rel == CONTRACT else None
+
+    monkeypatch.setattr(contract_drift, "http_reader", http_reader)
+    assert contract_drift.main(["--repo", str(repo), "--online"]) == 1
+    out = capsys.readouterr()
+    assert "CONTRACTKOPIE NIET IN ORDE (1 problemen)" in out.err
+    assert f"{CONFORMITEIT}: niet gevonden in lvos04/ai-server-manager" in out.err and "in orde" not in out.out
+
+
+def test_main_bron_map_zonder_de_bron_commit_is_omgevingsfout(tmp_path, capsys):
+    """Een git-checkout die de bron-commit niet heeft (verkeerde repo, onvolledige clone) is geen bron."""
+    bron = init_repo(tmp_path / "bron")
+    write(bron, "README.md", "geen contract\n")
+    commit_all(bron, "andere repo")
+    assert contract_drift.main(["--repo", str(REPO_ROOT), "--bron-map", str(bron)]) == 3
+    out = capsys.readouterr()
+    assert "checkout zonder de bron-commit" in out.err and "in orde" not in out.out
+
+
+def test_onleesbare_bron_verbergt_een_gewijzigde_kopie_niet(tmp_path, kopie, monkeypatch, capsys):
+    """Wat de sha256-pin offline al aantoont, blijft in de uitvoer staan als de bron niet te lezen is."""
+    repo, texts = kopie
+    monkeypatch.setattr(contract_drift, "KOPIEEN", pins_for(texts))
+    (repo / CONTRACT).write_bytes(texts[CONTRACT] + b"lokale aanpassing\n")
+    monkeypatch.setattr(contract_drift, "http_reader", lambda ref, attempts=4, sleep=None: (lambda rel: None))
+    assert contract_drift.main(["--repo", str(repo), "--online"]) == 3
+    err = capsys.readouterr().err
+    assert "geen van de 2 bestanden gevonden" in err and f"{CONTRACT}: sha256" in err and "kopie is gewijzigd" in err
 
 
 def test_main_bron_map_zonder_git_is_gebruiksfout(tmp_path, capsys):

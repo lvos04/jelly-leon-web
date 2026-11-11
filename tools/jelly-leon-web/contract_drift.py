@@ -17,7 +17,8 @@ Controles:
      alleen als waarschuwing — op de bronbranch (`--bronbranch`). Netwerkfouten: 4 pogingen (wacht 2/4/8 s).
 
 Alleen standaardbibliotheek. Exitcodes: 0 = gelijk (eventueel met waarschuwing), 1 = drift/afwijking,
-3 = gebruiks- of omgevingsfout (bv. bron niet bereikbaar). Een omgevingsfout wordt nooit als "in orde" gemeld.
+3 = gebruiks- of omgevingsfout (bv. bron niet bereikbaar, of geen enkel bestand op de bron-commit te vinden: bron niet
+meer publiek leesbaar of een checkout zonder die commit). Een omgevingsfout wordt nooit als "in orde" gemeld.
 """
 
 from __future__ import annotations
@@ -60,6 +61,10 @@ RAW_URL = "https://raw.githubusercontent.com/{repo}/{ref}/{path}"
 Reader = Callable[[str], bytes | None]
 
 
+class BronNietLeesbaar(OSError):
+    """Geen enkel vastgezet bestand is op de bron-commit te vinden: er valt niets te vergelijken (omgevingsfout)."""
+
+
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
@@ -93,14 +98,21 @@ def check_pins(repo: Path, pins: dict[str, str] | None = None) -> list[str]:
 def compare_with_source(
     repo: Path, at_commit: Reader, current: Reader | None, pins: dict[str, str] | None = None
 ) -> tuple[list[str], list[str]]:
-    """Kopie ↔ bron op de bron-commit (fout bij verschil) en ↔ huidige bron (alleen een waarschuwing)."""
+    """Kopie ↔ bron op de bron-commit (fout bij verschil) en ↔ huidige bron (alleen een waarschuwing).
+
+    Is op de bron-commit geen enkel bestand te vinden, dan is de bron zelf niet leesbaar (GitHub antwoordt met 404 als
+    de repo niet meer publiek is of verplaatst is; een lokale checkout mist de commit): BronNietLeesbaar, exit 3.
+    Dat is geen drift van de kopieën en nooit "in orde". Ontbreekt een deel, dan is dat wel een afwijking (exit 1).
+    """
     errors: list[str] = []
     warnings: list[str] = []
+    missing = 0
     for rel in pins or KOPIEEN:
         path = repo / rel
         copy = path.read_bytes() if path.is_file() else None
         source = at_commit(rel)
         if source is None:
+            missing += 1
             errors.append(f"{rel}: niet gevonden in {BRON_REPO} op {BRON_COMMIT[:9]}")
         elif copy != source:
             errors.append(f"{rel}: kopie is niet byte-gelijk aan {BRON_REPO}@{BRON_COMMIT[:9]}")
@@ -113,6 +125,12 @@ def compare_with_source(
                     f"{rel}: de bron is na {BRON_COMMIT[:9]} gewijzigd — nieuwe contractstand overnemen "
                     "(orkestratie: byte-gelijk kopiëren, bron-commit en sha256 in contract_drift.py bijwerken)"
                 )
+    if missing and missing == len(pins or KOPIEEN):
+        raise BronNietLeesbaar(
+            f"geen van de {missing} bestanden gevonden in {BRON_REPO} op {BRON_COMMIT[:9]}: de bron is niet leesbaar "
+            "(niet meer publiek, verplaatst, of een checkout zonder de bron-commit) of de bron-commit bestaat daar "
+            "niet — er is niets vergeleken"
+        )
     return errors, warnings
 
 
@@ -184,6 +202,9 @@ def main(argv: list[str] | None = None) -> int:
             errors += more
     except OSError as exc:
         print(f"FOUT: {exc}", file=sys.stderr)
+        # Wat offline al vaststond (sha256-pin) blijft zichtbaar, ook als de bron niet te lezen is.
+        for line in errors:
+            print(f"  - {line}", file=sys.stderr)
         return 3
 
     for line in warnings:
