@@ -103,20 +103,50 @@
     "id": "C1.3-JLW-01",
     "status": "Bezig",
     "validatie": "Unit-getest",
-    "bewijs": "commit 328a7c1c8 (PLATFORM_CONTRACTEN.md 'contracts 1.3' en CONTRACT_1.3_CONFORMITEIT.md byte-gelijk uit ai-server-manager@02b119cb8; CONTRACT_1.2_CONFORMITEIT.md als historie byte-gelijk aan dezelfde bron-commit; tools/jelly-leon-web/contract_drift.py pint de drie sha256-waarden, eist de versiekop 'contracts 1.3', de kop van de 1.3-conformiteitslijst en beide bestanden in de pinlijst); tools/jelly-leon-web/tests/test_contract_drift.py (18 tests); lokaal: contract_drift.py offline, --bron-map ../ai-server-manager en --online exit 0 (3 bestanden byte-gelijk); CI-stap 'Platformcontract-kopie' in de job forkregels",
+    "bewijs": "commit 328a7c1c8 (PLATFORM_CONTRACTEN.md 'contracts 1.3' en CONTRACT_1.3_CONFORMITEIT.md byte-gelijk uit ai-server-manager@02b119cb8; CONTRACT_1.2_CONFORMITEIT.md als historie byte-gelijk aan dezelfde bron-commit; tools/jelly-leon-web/contract_drift.py pint de drie sha256-waarden, eist de versiekop 'contracts 1.3', de kop van de 1.3-conformiteitslijst en beide bestanden in de pinlijst); tools/jelly-leon-web/tests/test_contract_drift.py (18 tests); lokaal: contract_drift.py offline, --bron-map ../ai-server-manager en --online exit 0 (3 bestanden byte-gelijk); CI-stap 'Platformcontract-kopie' in de job forkregels; GitHub Actions run 42812887508 op 2865bf3e6 geslaagd (8/8 jobs; test-evidence/c13-github-ci-run-42812887508.json), stap 'Platformcontract-kopie': online tegen GitHub 3 bestanden byte-gelijk aan ai-server-manager@02b119cb8; hervatting 2026-11-11 (onafhankelijke hermeting op 2865bf3e6): cmp van de drie kopieën tegen de naastgelegen ai-server-manager-checkout gelijk; contract_drift.py offline, --bron-map en --online --github exit 0; 9 tegenproeven op tijdelijke kopieën zoals verwacht (extra byte, gewijzigde lijst, gewijzigde 1.2-historie, ontbrekende lijst, oude 1.2-kopie en CRLF → exit 1; bronmap zonder git → exit 3) — test-evidence/c13-hervatting-herverificatie.json",
     "blokkade": "",
     "opmerking": "Kopieën nooit lokaal aanpassen; een nieuwe contractstand overnemen is een stap van de orkestratie (byte-gelijk kopiëren, bron-commit en sha256 in contract_drift.py bijwerken). Verwijzingen naar ai-server-manager staan in 1.3 als tekst, niet meer als relatieve link.",
     "repo": "jelly-leon-web",
-    "bijgewerkt": "2026-11-10"
+    "bijgewerkt": "2026-11-11"
   },
   {
     "id": "C1.3-JLW-02",
     "status": "Bezig",
     "validatie": "Unit-getest",
-    "bewijs": "tools/jelly-leon-web/check_fork_consistency.py (§11 van 1.3: nooit een lege validatie; 'Niet getest' alleen bij status 'Niet gestart' en nooit naast een testuitkomst; 'Intel-iGPU-getest (ontwikkelmachine)' alleen samen met het hardwarevoorbehoud; elke reden uit blokkade is een lijstwaarde en staat ook in validatie; contractpunten C1.3-/C1.2- alleen als ze in de gekopieerde lijst onder 'voor alle repos' of 'jelly-leon-web' staan; reviews als REVIEW-jelly-leon-web-<onderwerp>); tools/jelly-leon-web/tests/test_evidence_contract_1_3.py en test_patch_register_and_consistency.py::test_evidence_blokkade_staat_ook_in_validatie; CI-stappen 'Versie, technische identiteit en EVIDENCE.json' en 'Tests van de forktools' in de job forkregels",
+    "bewijs": "tools/jelly-leon-web/check_fork_consistency.py (§11 van 1.3: nooit een lege validatie; 'Niet getest' alleen bij status 'Niet gestart' en nooit naast een testuitkomst; 'Intel-iGPU-getest (ontwikkelmachine)' alleen samen met het hardwarevoorbehoud; elke reden uit blokkade is een lijstwaarde en staat ook in validatie; contractpunten C1.3-/C1.2- alleen als ze in de gekopieerde lijst onder 'voor alle repos' of 'jelly-leon-web' staan; reviews als REVIEW-jelly-leon-web-<onderwerp>); tools/jelly-leon-web/tests/test_evidence_contract_1_3.py en test_patch_register_and_consistency.py::test_evidence_blokkade_staat_ook_in_validatie; CI-stappen 'Versie, technische identiteit en EVIDENCE.json' en 'Tests van de forktools' in de job forkregels; GitHub Actions run 42812887508 op 2865bf3e6 geslaagd (8/8 jobs; test-evidence/c13-github-ci-run-42812887508.json), job forkregels: forkconsistentie in orde, 225 tool-tests + 1 overgeslagen (de vergelijking met een naastgelegen ai-server-manager-checkout draait alleen lokaal); hervatting 2026-11-11 (onafhankelijke hermeting op 2865bf3e6): check_fork_consistency.py exit 0 op de echte EVIDENCE.json, 226 tool-tests lokaal; 14 tegenproeven op een tijdelijke kopie zoals verwacht (lege validatie, de twee verboden statussen, blokkade-reden niet in validatie, 'Niet getest' bij 'Bezig', iGPU-waarde zonder hardwarevoorbehoud, contractpunt van een andere repo, Testmatrix-waarde op een contractpunt, niet-bestaande commit, dubbel id en verkeerde repo → afgekeurd; C1.3-ALG-02 en REVIEW-jelly-leon-web-… toegestaan) — test-evidence/c13-hervatting-herverificatie.json",
     "blokkade": "",
     "opmerking": "Alle bestaande regels (B03-001, B03-013, EX48, I24-24-01, I06-06-07, B03-014, B03-019, JLT-60, JLT-61, JLT-63) met de 1.3-regels opnieuw gecontroleerd: al consistent, geen inhoudelijke wijziging nodig. Geen regel gebruikt 'Niet getest' of 'Intel-iGPU-getest (ontwikkelmachine)': de webclient heeft geen GPU-pad en alle rijen zijn gestart.",
     "repo": "jelly-leon-web",
-    "bijgewerkt": "2026-11-10"
+    "bijgewerkt": "2026-11-11"
+  },
+  {
+    "id": "C1.3-ALG-01",
+    "status": "Bezig",
+    "validatie": "Unit-getest",
+    "bewijs": "voor deze repo uitgewerkt als C1.3-JLW-01 (zie die regel): commit 328a7c1c8 (kopieën byte-gelijk uit ai-server-manager@02b119cb8, drifttest tools/jelly-leon-web/contract_drift.py met sha256-pin op de bron-commit, CONTRACT_1.2_CONFORMITEIT.md als historie); tools/jelly-leon-web/tests/test_contract_drift.py; GitHub Actions run 42812887508 op 2865bf3e6 geslaagd (8/8 jobs; test-evidence/c13-github-ci-run-42812887508.json); hermeting 2026-11-11: test-evidence/c13-hervatting-herverificatie.json",
+    "blokkade": "",
+    "opmerking": "Algemeen punt 'voor alle repos'; de kopieën worden hier nooit lokaal aangepast.",
+    "repo": "jelly-leon-web",
+    "bijgewerkt": "2026-11-11"
+  },
+  {
+    "id": "C1.3-ALG-02",
+    "status": "Bezig",
+    "validatie": "Unit-getest",
+    "bewijs": "voor deze repo uitgewerkt als C1.3-JLW-02 (zie die regel): commit c95e7694d (tools/jelly-leon-web/check_fork_consistency.py bewaakt §11 van 1.3: de nieuwe waarden 'Intel-iGPU-getest (ontwikkelmachine)' en 'Niet getest', nooit een lege validatie, Testmatrix-ID's met Sim-geslaagd/Sim-mislukt, elke reden uit blokkade ook in validatie, contractpunten C1.3-…/C1.2-… en reviews REVIEW-jelly-leon-web-…); tools/jelly-leon-web/tests/test_evidence_contract_1_3.py; GitHub Actions run 42812887508 op 2865bf3e6 geslaagd (8/8 jobs; test-evidence/c13-github-ci-run-42812887508.json); hermeting 2026-11-11: test-evidence/c13-hervatting-herverificatie.json",
+    "blokkade": "",
+    "opmerking": "Algemeen punt 'voor alle repos'. Deze repo heeft geen statuspagina (geen eigen dienst), dus geen regels daarvoor.",
+    "repo": "jelly-leon-web",
+    "bijgewerkt": "2026-11-11"
+  },
+  {
+    "id": "C1.3-ALG-03",
+    "status": "Bezig",
+    "validatie": "Unit-getest",
+    "bewijs": "LICENSE is de GPL-2.0-tekst van upstream jellyfin-web v12.4 en CONTRIBUTORS.md is ongewijzigd: git diff --quiet 0a580ce8df89 HEAD -- LICENSE CONTRIBUTORS.md exit 0 (2026-11-11); bewaakt door tools/jelly-leon-web/patch_register_check.py (LICENSE en CONTRIBUTORS.md mogen nooit afwijken van de upstream-basis; CI-job forkregels) en tools/jelly-leon-web/tests/test_patch_register_and_consistency.py::test_license_and_contributors_may_never_change; GitHub Actions run 42812887508 op 2865bf3e6 geslaagd (8/8 jobs; test-evidence/c13-github-ci-run-42812887508.json); test-evidence/c13-hervatting-herverificatie.json",
+    "blokkade": "",
+    "opmerking": "De conformiteitslijst meet dit punt al als conform: een fork houdt zijn upstream-licentie (GPL-2.0), geen GPL-3.0. Geen wijziging nodig; de regel legt alleen de bewaking vast.",
+    "repo": "jelly-leon-web",
+    "bijgewerkt": "2026-11-11"
   }
 ]

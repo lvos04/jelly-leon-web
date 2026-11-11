@@ -1,0 +1,204 @@
+{
+ "test": "Contractronde 1.3 (C1.3-JLW-01, C1.3-JLW-02, C1.3-ALG-01…03): onafhankelijke hermeting bij de hervatting, lokaal",
+ "datum": "2026-11-11",
+ "omgeving": {
+  "machine": "eigen bouwmachine van de gebruiker: Ubuntu 26.04.1 LTS, kernel 7.0.0-42, 22 CPU's, 14 GiB RAM (gedeeld met andere bouwers)",
+  "python": "3.12.16 in een venv buiten de repo (pytest 8.4.2, pyyaml 6.0.3, actionlint-py 1.7.12.25, shellcheck-py 0.11.0.1) — tools/jelly-leon-web/requirements-dev.txt",
+  "commit": "2865bf3e6345430212b99d71a7ac418cf3c0fcd6 (werkboom schoon, gelijk aan origin/ccr-c133d7a0-kuz1cv)",
+  "bron": "naastgelegen checkout van lvos04/ai-server-manager; laatste commit op beide contractbestanden: 02b119c"
+ },
+ "aanleiding": "De vorige uitvoerder van deze stap is afgebroken nadat de vier commits van de ronde (328a7c1c8, c95e7694d, 8b86e0994, 2865bf3e6) al gepusht waren. Het werk is daarom niet overgedaan maar opnieuw gemeten.",
+ "stappen": [
+  {
+   "commando": "cmp docs/platform-v2/<bestand> ../ai-server-manager/docs/platform-v2/<bestand> (PLATFORM_CONTRACTEN.md, CONTRACT_1.3_CONFORMITEIT.md, CONTRACT_1.2_CONFORMITEIT.md)",
+   "exit": 0,
+   "duur_s": 0.0,
+   "uitkomst": "alle drie byte-gelijk"
+  },
+  {
+   "commando": "python tools/jelly-leon-web/contract_drift.py",
+   "exit": 0,
+   "duur_s": 0.1,
+   "uitkomst": "Contractkopieën in orde (offline, sha256-pin): 3 bestanden byte-gelijk aan lvos04/ai-server-manager@02b119cb8."
+  },
+  {
+   "commando": "python tools/jelly-leon-web/contract_drift.py --bron-map ../ai-server-manager",
+   "exit": 0,
+   "duur_s": 0.1,
+   "uitkomst": "Contractkopieën in orde (tegen de lokale bron): 3 bestanden byte-gelijk aan lvos04/ai-server-manager@02b119cb8."
+  },
+  {
+   "commando": "python tools/jelly-leon-web/contract_drift.py --online --github",
+   "exit": 0,
+   "duur_s": 1.8,
+   "uitkomst": "Contractkopieën in orde (online tegen GitHub): 3 bestanden byte-gelijk aan lvos04/ai-server-manager@02b119cb8."
+  },
+  {
+   "commando": "python tools/jelly-leon-web/check_fork_consistency.py",
+   "exit": 0,
+   "duur_s": 0.3,
+   "uitkomst": "Forkconsistentie in orde: basis v12.4 (0a580ce8df89), forkversie 12.4.0-jl.0, technische identiteit jellyfin-web 12.4.0."
+  },
+  {
+   "commando": "python tools/jelly-leon-web/patch_register_check.py",
+   "exit": 0,
+   "duur_s": 0.1,
+   "uitkomst": "Patchregister in orde."
+  },
+  {
+   "commando": "python tools/jelly-leon-web/workflow_check.py",
+   "exit": 0,
+   "duur_s": 0.1,
+   "uitkomst": "Workflows in orde: 10 upstream (geheimen bewaakt), 2 eigen (vastgezet)."
+  },
+  {
+   "commando": "python tools/jelly-leon-web/upstream_gedrag_check.py",
+   "exit": 0,
+   "duur_s": 0.1,
+   "uitkomst": "Upstream-gedrag (webdeel) in orde: 19 ankers gevonden, alle UG-WEB-verwijzingen bekend."
+  },
+  {
+   "commando": "python -m pytest -q -c tools/jelly-leon-web/pytest.ini tools/jelly-leon-web/tests",
+   "exit": 0,
+   "duur_s": 6.4,
+   "uitkomst": "226 passed (in de CI 225 + 1 overgeslagen: de vergelijking met een naastgelegen ai-server-manager-checkout draait alleen lokaal)"
+  },
+  {
+   "commando": "actionlint .github/workflows/jelly-leon-web-ci.yml .github/workflows/upstream-sync.yml",
+   "exit": 0,
+   "duur_s": 0.1,
+   "uitkomst": "geen meldingen"
+  },
+  {
+   "commando": "git diff --quiet 0a580ce8df89282dfd120b6d5efb8e106da23bd5 HEAD -- LICENSE CONTRIBUTORS.md",
+   "exit": 0,
+   "duur_s": 0.0,
+   "uitkomst": "LICENSE (GPL-2.0) en CONTRIBUTORS.md ongewijzigd ten opzichte van upstream v12.4 (C1.3-ALG-03)"
+  }
+ ],
+ "tegenproeven": {
+  "werkwijze": "Wegwerpscript buiten de repo (niet bewaard): kopieert de echte bestanden naar een tijdelijke map, brengt één afwijking aan en draait daarop de echte controles. De repo zelf is niet aangeraakt. De vaste tests in tools/jelly-leon-web/tests dekken dezelfde gevallen met proefbestanden.",
+  "uitkomst": "23/23 zoals verwacht",
+  "contract_drift": [
+   {
+    "geval": "ongewijzigde kopie",
+    "verwacht": "exit 0",
+    "gemeten": "exit 0"
+   },
+   {
+    "geval": "1 byte extra in PLATFORM_CONTRACTEN.md",
+    "verwacht": "exit 1",
+    "gemeten": "exit 1"
+   },
+   {
+    "geval": "CONTRACT_1.3_CONFORMITEIT.md gewijzigd",
+    "verwacht": "exit 1",
+    "gemeten": "exit 1"
+   },
+   {
+    "geval": "CONTRACT_1.2_CONFORMITEIT.md (historie) gewijzigd",
+    "verwacht": "exit 1",
+    "gemeten": "exit 1"
+   },
+   {
+    "geval": "CONTRACT_1.3_CONFORMITEIT.md ontbreekt",
+    "verwacht": "exit 1",
+    "gemeten": "exit 1"
+   },
+   {
+    "geval": "oude 1.2-kopie van het contract",
+    "verwacht": "exit 1",
+    "gemeten": "exit 1"
+   },
+   {
+    "geval": "CRLF in één regel",
+    "verwacht": "exit 1",
+    "gemeten": "exit 1"
+   },
+   {
+    "geval": "--bron-map op de ai-server-manager-checkout",
+    "verwacht": "exit 0",
+    "gemeten": "exit 0"
+   },
+   {
+    "geval": "--bron-map op een map zonder git",
+    "verwacht": "exit 3",
+    "gemeten": "exit 3"
+   }
+  ],
+  "evidence": [
+   {
+    "geval": "echte EVIDENCE.json",
+    "verwacht": "0 meldingen",
+    "gemeten": "0 meldingen"
+   },
+   {
+    "geval": "lege validatie",
+    "verwacht": "afgekeurd",
+    "gemeten": "afgekeurd"
+   },
+   {
+    "geval": "status 'Gereed'",
+    "verwacht": "afgekeurd",
+    "gemeten": "afgekeurd"
+   },
+   {
+    "geval": "status 'Geslaagd'",
+    "verwacht": "afgekeurd",
+    "gemeten": "afgekeurd"
+   },
+   {
+    "geval": "NIET GEVALIDEERD (…) in blokkade maar niet in validatie",
+    "verwacht": "afgekeurd",
+    "gemeten": "afgekeurd"
+   },
+   {
+    "geval": "'Niet getest' bij status 'Bezig'",
+    "verwacht": "afgekeurd",
+    "gemeten": "afgekeurd"
+   },
+   {
+    "geval": "'Intel-iGPU-getest (ontwikkelmachine)' zonder hardwarevoorbehoud",
+    "verwacht": "afgekeurd",
+    "gemeten": "afgekeurd"
+   },
+   {
+    "geval": "contractpunt van een andere repo (niet onder 'voor alle repos' of 'jelly-leon-web')",
+    "verwacht": "afgekeurd",
+    "gemeten": "afgekeurd"
+   },
+   {
+    "geval": "C1.3-ALG-02",
+    "verwacht": "toegestaan",
+    "gemeten": "toegestaan"
+   },
+   {
+    "geval": "REVIEW-jelly-leon-web-contract-1.3",
+    "verwacht": "toegestaan",
+    "gemeten": "toegestaan"
+   },
+   {
+    "geval": "contractpunt met een Testmatrix-waarde (Sim-geslaagd)",
+    "verwacht": "afgekeurd",
+    "gemeten": "afgekeurd"
+   },
+   {
+    "geval": "niet-bestaande commit in bewijs",
+    "verwacht": "afgekeurd",
+    "gemeten": "afgekeurd"
+   },
+   {
+    "geval": "dubbel id",
+    "verwacht": "afgekeurd",
+    "gemeten": "afgekeurd"
+   },
+   {
+    "geval": "verkeerde repo",
+    "verwacht": "afgekeurd",
+    "gemeten": "afgekeurd"
+   }
+  ]
+ },
+ "niet_lokaal_gedraaid": "npm ci, eslint, stylelint, tsc, vitest, productiebuild, web-client-smoketest en upgradeproef: de ronde raakt geen webbroncode; deze onderdelen zijn alleen in de GitHub-CI gemeten (run 42812887508, c13-github-ci-run-42812887508.json).",
+ "validatie": "Unit-getest (controles en tool-tests op de bouwmachine; niets op een echte NAS)"
+}

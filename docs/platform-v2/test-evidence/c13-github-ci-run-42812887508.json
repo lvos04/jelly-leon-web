@@ -1,0 +1,53 @@
+{
+ "workflow": "Jelly Leon Web CI (.github/workflows/jelly-leon-web-ci.yml)",
+ "run": "https://github.com/lvos04/jelly-leon-web/actions/runs/42812887508",
+ "trigger": "push naar ccr-c133d7a0-kuz1cv (contractronde 1.3: C1.3-JLW-01, C1.3-JLW-02)",
+ "commit": "2865bf3e6345430212b99d71a7ac418cf3c0fcd6",
+ "gestart_utc": "2026-11-10T12:06:06Z",
+ "beeindigd_utc": "2026-11-10T12:18:04Z",
+ "resultaat": "success",
+ "jobs": [
+  {
+   "job": "Forkregels (patchregister, identiteit, workflows, tool-tests)",
+   "resultaat": "success",
+   "detail": "forkconsistentie in orde (basis v12.4, forkversie 12.4.0-jl.0; EVIDENCE.json met de regels van §11 van 1.3), patchregister in orde, drifttest: 'Contractkopieën in orde (online tegen GitHub): 3 bestanden byte-gelijk aan lvos04/ai-server-manager@02b119cb8', workflow_check (10 upstream bewaakt, 2 eigen), upstream_gedrag_check (19 ankers), pytest 225 geslaagd + 1 overgeslagen (vergelijking met een naastgelegen ai-server-manager-checkout, alleen lokaal), actionlint met shellcheck"
+  },
+  {
+   "job": "Upstream-kwaliteit (lint)",
+   "resultaat": "success",
+   "detail": "npm ci 1771 pakketten; eslint 0 fouten, 98 upstream-waarschuwingen"
+  },
+  {
+   "job": "Upstream-kwaliteit (stylelint)",
+   "resultaat": "success",
+   "detail": ""
+  },
+  {
+   "job": "Upstream-kwaliteit (build:check)",
+   "resultaat": "success",
+   "detail": "tsc --noEmit"
+  },
+  {
+   "job": "Upstream-kwaliteit (test)",
+   "resultaat": "success",
+   "detail": "vitest 12 bestanden, 164/164"
+  },
+  {
+   "job": "Productiebuild + artefact (in de Node-image op digest)",
+   "resultaat": "success",
+   "detail": "Node v24.22.2, npm 11.19.1; npm ci 1771 pakketten; productiebuild 2348 bestanden; es-check 982 bestanden ES5; artefact jelly-leon-web-dist (zip-sha256 7c5df9a6d376204a…, 35067789 bytes)"
+  },
+  {
+   "job": "Web-client-smoketest (Chromium + officiële server 12.4, fork en stock, Modern + Legacy, simulator)",
+   "resultaat": "success",
+   "detail": "tools/jelly-leon-web/e2e/web_smoke.py tegen jellyfin/jellyfin:12.4@sha256:fea863d0…: fork 45/45, stock 39/39"
+  },
+  {
+   "job": "Upgradeproef 10.11.11 → 12.4 met behoud van kijkgegevens (simulator)",
+   "resultaat": "success",
+   "detail": "tools/jelly-leon-web/e2e/upgrade_proef.py van jellyfin/jellyfin:10.11.11@sha256:aefb67e6… naar 12.4: 50/50 stappen, kijkgegevens VÓÓR = NA"
+  }
+ ],
+ "opmerking": "De contractronde 1.3 raakt geen webbroncode: build, smoketest en upgradeproef zijn hier alleen als regressie meegedraaid. Bij de hervatting op 2026-11-11 uitgelezen met 'gh run view 42812887508 --json' en '--log'.",
+ "validatie": "Sim-getest (GitHub-runner ubuntu-24.04; geen echte NAS of apparaten)"
+}
