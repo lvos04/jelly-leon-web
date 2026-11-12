@@ -5,7 +5,7 @@ Alles hieronder is **echt uitgevoerd** op de eigen bouwmachine van de gebruiker 
 7.0.0-42, 22 CPU's, 14 GiB RAM gedeeld met andere bouwers, Docker Engine 29.1.3, direct internet zonder proxy).
 Zware stappen één voor één met `nice -n 10`, de productiebuild op 4 CPU's (`taskset -c 0-3`, anders liep de machine
 vol: een eerste poging zonder begrenzing werd door de kernel gestopt, exit 137), stacks onder
-`/home/transcode/truenas-v2/.lokaal/stack.lock`. Validatie: **Sim-getest** (officiële images + headless Chromium);
+`<WERKMAP>/.lokaal/stack.lock`. Validatie: **Sim-getest** (officiële images + headless Chromium);
 geen NAS, geen echte apparaten.
 
 ## 1. Upgrade met de sync-tooling
