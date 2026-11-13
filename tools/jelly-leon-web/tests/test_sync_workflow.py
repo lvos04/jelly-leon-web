@@ -9,6 +9,7 @@ Bewaakt drie dingen die actionlint niet ziet:
 
 from __future__ import annotations
 
+import base64
 import os
 import shutil
 import subprocess
@@ -21,6 +22,9 @@ from conftest import REPO_ROOT, git
 
 WORKFLOW = REPO_ROOT / ".github/workflows/upstream-sync.yml"
 TOKEN = "neppe-testwaarde-pushtoken-jlw-Z05-q7Xk2Rm9Vt4Lp8Wd"
+# De vorm waarin de workflow het token gebruikt: base64("x-access-token:" + token) in de extraheader.
+AUTH_B64 = base64.b64encode(f"x-access-token:{TOKEN}".encode()).decode()
+MASK_LINE = f"::add-mask::{AUTH_B64}"
 
 
 def workflow() -> dict:
@@ -143,8 +147,26 @@ def test_bundle_is_pushed_from_clean_runner_without_leaking_token_or_running_hoo
     assert git(remote, "rev-parse", "refs/tags/upstream-v1.0.1^{commit}") == git(
         synced["fork"], "rev-parse", "upstream-v1.0.1^{commit}")
     assert TOKEN not in proc.stdout + proc.stderr
+    # De base64-vorm mag alleen in de add-mask-opdracht zelf staan (die GitHub niet toont), nergens anders.
+    leaked = [line for line in (proc.stdout + proc.stderr).splitlines() if AUTH_B64 in line and line != MASK_LINE]
+    assert leaked == [], "base64-vorm van het token in de uitvoer"
     assert not (synced["tmp"] / "hook-liep").exists()
-    assert TOKEN not in (checkout / ".git/config").read_text(encoding="utf-8")
+    config = (checkout / ".git/config").read_text(encoding="utf-8")
+    assert TOKEN not in config
+    assert AUTH_B64 not in config and "extraheader" not in config.lower(), "extraheader in .git/config"
+
+
+def test_push_step_masks_the_auth_value(synced):
+    """De workflow maskeert de base64-vorm (add-mask); de eerste uitvoerregel met die waarde is de add-mask zelf.
+
+    Dat GitHub de waarde daarna echt vervangt, is alleen op GitHub te zien; hier wordt de opdracht bewaakt.
+    """
+    checkout, env = clean_runner_checkout(synced, "runner1")
+    proc = run_step(step("beoordeling", "sync/<tag> pushen")["run"], checkout, {**env, "PUSH_TOKEN": TOKEN})
+    assert proc.returncode == 0, proc.stderr
+    with_auth = [line for line in proc.stdout.splitlines() if AUTH_B64 in line]
+    assert with_auth[:1] == [MASK_LINE], "add-mask voor de extraheader-waarde ontbreekt"
+    assert AUTH_B64 not in proc.stderr
 
 
 def test_existing_sync_branch_is_never_overwritten(synced):
