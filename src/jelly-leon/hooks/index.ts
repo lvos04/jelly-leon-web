@@ -10,6 +10,11 @@
  * mislukte import of een fout in de handler laten `jlHook` gewoon terugkeren (de belofte wordt nooit afgewezen).
  * Er komt dan hooguit één regel op de console met de naam van de haak en het soort fout, nooit de context, de
  * foutmelding of andere gegevens van de gebruiker.
+ *
+ * Regel voor elke upstream-haak: een upstream-plek awaitet `jlHook` nooit in een pad dat het scherm tekent. Daar is
+ * de aanroep fire-and-forget: `void jlHook('naam', ctx);` (`void` voor de lintregel no-floating-promises). Er is
+ * bewust geen time-out: de belofte rondt pas af als de handler afrondt, dus een handler die nooit afrondt laat alleen
+ * een aanroeper hangen die wacht; een aanroeper die niet wacht, gaat gewoon door.
  */
 
 /** De gegevens die de upstream-plek aan de haak meegeeft. */
@@ -30,15 +35,22 @@ export interface JlHookModule {
 /** Laadt een handlermodule, altijd als `() => import('../<pad>')`. */
 export type JlHookLoader = () => Promise<JlHookModule>;
 
-/** De tabel met handlers: haaknaam -> lader. */
-export type JlHookTable = Readonly<Record<string, JlHookLoader>>;
+/** Eén regel in de tabel met handlers: `[haaknaam, lader]`. */
+export type JlHookEntry = readonly [string, JlHookLoader];
+
+/**
+ * De tabel met handlers: een lijst van `[haaknaam, lader]`. Bewust een lijst en geen object: zo kunnen haaknamen met
+ * een punt (zoals 'syncplay.menu') zonder lintuitzondering (de regel naming-convention keurt zulke objectsleutels af)
+ * en speelt de prototypeketen van een object geen rol. Staat een naam er twee keer in, dan telt de eerste regel.
+ */
+export type JlHookTable = readonly JlHookEntry[];
 
 /**
  * De tabel met handlers. In deze stap leeg: er is nog geen haak geplaatst. Een handler komt hier pas bij samen met
  * de haak in het upstream-bestand (eigen regel `JLW-NNNN` in het patchregister), bijvoorbeeld
- * `'naam': () => import('../features/<functie>/naam')`.
+ * `['syncplay.menu', () => import('../features/<functie>/menu')]`.
  */
-export const JL_HOOK_HANDLERS: JlHookTable = {};
+export const JL_HOOK_HANDLERS: JlHookTable = [];
 
 const LOG_PREFIX = '[Jelly Leon] haak';
 
@@ -69,21 +81,42 @@ export function logJlHookProblem(name: string, reason: string): void {
     }
 }
 
-/** Zoekt de lader op; alleen eigen sleutels van de tabel tellen (geen `constructor`, `__proto__` en dergelijke). */
+/** Zoekt de lader op: de eerste regel met precies deze naam. Een kapotte regel of tabel geeft `undefined`. */
 function findLoader(table: JlHookTable, name: string): JlHookLoader | undefined {
-    if (!Object.prototype.hasOwnProperty.call(table, name)) {
+    if (!Array.isArray(table)) {
         return undefined;
     }
-    const loader: unknown = table[name];
-    return typeof loader === 'function' ? loader as JlHookLoader : undefined;
+    for (const entry of table) {
+        if (Array.isArray(entry) && entry[0] === name) {
+            const loader: unknown = entry[1];
+            return typeof loader === 'function' ? loader as JlHookLoader : undefined;
+        }
+    }
+    return undefined;
 }
+
+/** Welke standaardexport een aanroeper accepteert, met de vaste reden voor de consoleregel als die niet klopt. */
+export interface JlHookExportCheck {
+    accepts: (value: unknown) => boolean;
+    reason: string;
+}
+
+/** Voor `jlHook`: de standaardexport moet een functie zijn. */
+export const JL_HOOK_HANDLER_CHECK: JlHookExportCheck = {
+    accepts: value => typeof value === 'function',
+    reason: 'module heeft geen handler (standaardexport is geen functie)'
+};
 
 /**
  * Laadt de standaardexport van de handlermodule voor `name`. Geeft `undefined` (en schrijft één consoleregel) bij
- * een onbekende naam, een kapotte tabelregel, een mislukte import of een export die geen functie is. Wordt nooit
- * afgewezen.
+ * een onbekende naam, een kapotte tabelregel, een mislukte import of een export die `check` niet accepteert (voor
+ * `jlHook`: geen functie). Wordt nooit afgewezen.
  */
-export async function loadJlHookExport(table: JlHookTable, name: string): Promise<unknown> {
+export async function loadJlHookExport(
+    table: JlHookTable,
+    name: string,
+    check: JlHookExportCheck = JL_HOOK_HANDLER_CHECK
+): Promise<unknown> {
     let loader: JlHookLoader | undefined;
     try {
         loader = findLoader(table, name);
@@ -104,13 +137,15 @@ export async function loadJlHookExport(table: JlHookTable, name: string): Promis
     }
 
     let handler: unknown;
+    let accepted: boolean;
     try {
         handler = module?.default;
+        accepted = check.accepts(handler);
     } catch {
-        handler = undefined;
+        accepted = false;
     }
-    if (typeof handler !== 'function') {
-        logJlHookProblem(name, 'module heeft geen handler (standaardexport is geen functie)');
+    if (!accepted) {
+        logJlHookProblem(name, check.reason);
         return undefined;
     }
     return handler;

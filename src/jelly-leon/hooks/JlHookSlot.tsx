@@ -6,6 +6,14 @@
  * prop `ctx`) met een dynamische `import()` en tekent die binnen een eigen error boundary. Mislukt de import, is de
  * naam onbekend of gooit het onderdeel een fout, dan tekent het slot niets en blijft het omliggende upstream-scherm
  * staan. Het slot toont zelf geen tekst.
+ *
+ * De standaardexport mag een functie- of klasse-onderdeel zijn, of een onderdeel uit `React.memo(...)` of
+ * `React.forwardRef(...)` (een object met `$$typeof`). Iets anders tekent het slot niet (één consoleregel).
+ *
+ * Let op: React logt een fout die de boundary vangt zelf volledig op de console, met de foutmelding (in productie met
+ * `console.error(fout)`, in ontwikkeling via de foutmelding van de browser). De consoleregel van het slot zelf bevat
+ * alleen de haaknaam en het soort fout; de logregel van React is niet te sturen. Daarom zetten fork-onderdelen nooit
+ * gegevens van de gebruiker (namen, ID's, titels uit `ctx`) in een foutmelding.
  */
 import React, { Component, useEffect, useState, type ComponentType } from 'react';
 import {
@@ -14,6 +22,7 @@ import {
     loadJlHookExport,
     logJlHookProblem,
     type JlHookContext,
+    type JlHookExportCheck,
     type JlHookTable
 } from './index';
 
@@ -28,12 +37,32 @@ type SlotComponent = ComponentType<{ ctx: JlHookContext }>;
 
 const LEGE_CONTEXT: JlHookContext = {};
 
+/** De `$$typeof` van de onderdelen uit `React.memo` en `React.forwardRef` (React gebruikt `Symbol.for`). */
+const REACT_WRAPPER_TYPES: readonly unknown[] = [ Symbol.for('react.memo'), Symbol.for('react.forward_ref') ];
+
+/** Een functie- of klasse-onderdeel, of een memo- of forwardRef-onderdeel. */
+function isSlotComponent(value: unknown): boolean {
+    if (typeof value === 'function') {
+        return true;
+    }
+    if (typeof value !== 'object' || value === null) {
+        return false;
+    }
+    return REACT_WRAPPER_TYPES.indexOf((value as Record<string, unknown>).$$typeof) !== -1;
+}
+
+/** Voor het slot: de standaardexport moet een React-onderdeel zijn. */
+const SLOT_EXPORT_CHECK: JlHookExportCheck = {
+    accepts: isSlotComponent,
+    reason: 'module heeft geen onderdeel (standaardexport is geen functie-, klasse-, memo- of forwardRef-onderdeel)'
+};
+
 function SlotLoader({ table, name, ctx }: Readonly<{ table: JlHookTable; name: string; ctx: JlHookContext }>) {
     const [loaded, setLoaded] = useState<{ name: string; component: SlotComponent } | null>(null);
 
     useEffect(() => {
         let active = true;
-        loadJlHookExport(table, name).then(component => {
+        loadJlHookExport(table, name, SLOT_EXPORT_CHECK).then(component => {
             if (active && component !== undefined) {
                 setLoaded({ name, component: component as SlotComponent });
             }
