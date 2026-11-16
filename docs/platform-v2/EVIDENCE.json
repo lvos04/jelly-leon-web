@@ -70,6 +70,16 @@
     "bijgewerkt": "2026-11-09"
   },
   {
+    "id": "B03-017",
+    "status": "Bezig",
+    "validatie": "Unit-getest; NIET GEVALIDEERD (hardware); NIET GEVALIDEERD (echte NAS)",
+    "bewijs": "webdeel (stap S-G1-60): fork-eigen haakmodule src/jelly-leon/hooks/index.ts (jlHook('naam', ctx): opzoeken in een eigen, lege tabel, dynamische import(), try/catch; consoleregel alleen met haaknaam en soort fout) en render-slot src/jelly-leon/hooks/JlHookSlot.tsx (eigen klasse-error-boundary); unit-tests src/jelly-leon/hooks/index.test.ts (14) en src/jelly-leon/hooks/JlHookSlot.test.tsx (8), met de negatieve gevallen handler gooit, import mislukt, onbekende naam, geen handler in de module en slot met falende handler (omliggende inhoud blijft staan en bruikbaar); mutatieproef: zonder boundary of zonder try/catch worden die tests rood; lokaal: forkregels (patchregister in orde zonder nieuwe JLW-regel, 251 tool-tests), eslint 0 fouten, stylelint, tsc, vitest 186/186, build:production + es-check; dist met en zonder src/jelly-leon byte-gelijk (diff -r over 2348 bestanden leeg); smoketest fork 45/45 en stock 39/39, upgradeproef 50/50; GitHub Actions-run Jelly Leon Web CI op de commit die deze regel toevoegt",
+    "blokkade": "Nog geen haak geplaatst: elke haak komt per functie met een eigen regel JLW-NNNN in PATCHES.md. Nog te bouwen voor het webdeel: de generator voor de config.json van de image (B03-017 Webkant). Echte browsers en echte tv's: NIET GEVALIDEERD (hardware); echte NAS: NIET GEVALIDEERD (echte NAS).",
+    "opmerking": "Haakmodule zonder geplaatste haak: geen upstream-bestand importeert de module, dus zij zit niet in de bundel (gemeten: dist gelijk aan die zonder de module). Alleen het webdeel van B03-017; de plugin (Jellyfin.Plugin.JellyLeon) hoort bij de repo jelly-leon.",
+    "repo": "jelly-leon-web",
+    "bijgewerkt": "2026-11-16"
+  },
+  {
     "id": "JLT-60",
     "status": "Bezig",
     "validatie": "Sim-geslaagd; NIET GEVALIDEERD (echte NAS)",

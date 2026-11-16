@@ -72,6 +72,13 @@ Herbeoordeeld op v12.4 (2026-11-09). De haakpunten staan met een sync-blokkerend
 verhuist een ankerpunt bij een upstream-sync, dan faalt CI vóórdat er een haak bestaat. Elke haak wordt één regel
 `jlHook('naam', ctx)` naar één fork-eigen module `src/jelly-leon/hooks` (dynamische import, try/catch), bouwplan §10.11.
 
+De haakmodule bestaat nu (stap S-G1-60, B03-017 webdeel): `src/jelly-leon/hooks/index.ts` (`jlHook('naam', ctx)`:
+handler opzoeken in een eigen tabel, laden met een dynamische `import()`, aanroepen binnen `try/catch`; een onbekende
+naam, een mislukte import of een fout in de handler laat de aanroeper altijd staan) en
+`src/jelly-leon/hooks/JlHookSlot.tsx` (render-slot met een eigen error boundary). De tabel met handlers is leeg en er is
+nog **geen** haak geplaatst: geen upstream-bestand importeert de module, dus zij zit niet in de bundel en er is geen
+`JLW`-regel bij gekomen. Elke haak hierna komt per functie, met een eigen regel `JLW-NNNN` in dit register.
+
 | Werknaam (bouwplan §10.11) | P0-planning | Upstream-bestand op v12.4 (haak) | Voor | Herbeoordeling 12.x |
 |---|---|---|---|---|
 | H-ITEMDETAILS | "JLW-0001" in `src/controllers/itemDetails/index.js` | `src/apps/legacy/controllers/itemDetails/index.js` (`reloadFromItem`) | B03-009 knop, F3 dialoog, F4 label | Verhuisd. Modern én Legacy laden dezelfde controller (`apps/{modern,legacy}/routes/legacyRoutes/user.ts` → `itemDetails/index`, `ViewManagerPage.tsx` importeert uit `apps/legacy/controllers/`): één haak volstaat. |
