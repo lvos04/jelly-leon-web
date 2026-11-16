@@ -42,12 +42,19 @@ export const JL_HOOK_HANDLERS: JlHookTable = {};
 
 const LOG_PREFIX = '[Jelly Leon] haak';
 
-/** Het soort fout, zonder de foutmelding zelf (die kan gebruikersgegevens bevatten). */
+/**
+ * Het soort fout, zonder de foutmelding zelf (die kan gebruikersgegevens bevatten). Gooit nooit: faalt het uitlezen
+ * van de fout zelf (een gooiende getter op `name`, een ingetrokken Proxy waarop `instanceof` faalt), dan 'onbekend'.
+ */
 export function jlHookErrorKind(error: unknown): string {
-    if (error instanceof Error && typeof error.name === 'string' && /^[A-Za-z]{1,40}$/.test(error.name)) {
-        return error.name;
+    try {
+        if (error instanceof Error && typeof error.name === 'string' && /^[A-Za-z]{1,40}$/.test(error.name)) {
+            return error.name;
+        }
+        return typeof error;
+    } catch {
+        return 'onbekend';
     }
-    return typeof error;
 }
 
 /**

@@ -1,10 +1,28 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createJlHook, jlHook, JL_HOOK_HANDLERS, type JlHookTable } from './index';
+import { createJlHook, jlHook, jlHookErrorKind, JL_HOOK_HANDLERS, type JlHookTable } from './index';
 
 const GEHEIM = 'gebruiker-geheim-1234';
 
 function stilConsole() {
     return vi.spyOn(console, 'warn').mockImplementation(() => { /* stil in de test */ });
+}
+
+/** Een fout waarvan het uitlezen zelf faalt: de getter van `name` gooit. */
+function foutMetGooiendeNaam() {
+    const fout = new Error(GEHEIM);
+    Object.defineProperty(fout, 'name', {
+        get() {
+            throw new Error('name-getter');
+        }
+    });
+    return fout;
+}
+
+/** Een ingetrokken Proxy: elke bewerking erop gooit, ook `instanceof`. */
+function ingetrokkenProxy(): object {
+    const { proxy, revoke } = Proxy.revocable({}, {});
+    revoke();
+    return proxy;
 }
 
 /** Alle consoleregels als tekst, om te controleren dat er geen gebruikersgegevens in staan. */
@@ -88,6 +106,43 @@ describe('Jelly Leon: haakmodule (jlHook)', () => {
             expect(consoleTekst(warn)).not.toContain(GEHEIM);
         });
 
+        it('should return without exception when the handler throws a value whose kind cannot be read', async () => {
+            const warn = stilConsole();
+            const tabel: JlHookTable = {
+                'testNaamGetter': () => Promise.resolve({
+                    default: () => {
+                        throw foutMetGooiendeNaam();
+                    }
+                }),
+                'testProxy': () => Promise.resolve({
+                    default: () => Promise.reject(ingetrokkenProxy())
+                })
+            };
+            const hook = createJlHook(tabel);
+
+            await expect(hook('testNaamGetter', {})).resolves.toBeUndefined();
+            await expect(hook('testProxy', {})).resolves.toBeUndefined();
+            expect(warn).toHaveBeenCalledTimes(2);
+            expect(consoleTekst(warn)).toContain('"testNaamGetter": handler gaf een fout (onbekend)');
+            expect(consoleTekst(warn)).toContain('"testProxy": handler gaf een fout (onbekend)');
+            expect(consoleTekst(warn)).not.toContain(GEHEIM);
+        });
+
+        it('should return without exception when the import fails with a value whose kind cannot be read', async () => {
+            const warn = stilConsole();
+            const tabel: JlHookTable = {
+                'testImportNaam': () => Promise.reject(foutMetGooiendeNaam()),
+                'testImportProxy': () => Promise.reject(ingetrokkenProxy())
+            };
+            const hook = createJlHook(tabel);
+
+            await expect(hook('testImportNaam', {})).resolves.toBeUndefined();
+            await expect(hook('testImportProxy', {})).resolves.toBeUndefined();
+            expect(warn).toHaveBeenCalledTimes(2);
+            expect(consoleTekst(warn)).toContain('"testImportNaam": laden mislukt (onbekend)');
+            expect(consoleTekst(warn)).toContain('"testImportProxy": laden mislukt (onbekend)');
+        });
+
         it('should return without exception when the import fails', async () => {
             const warn = stilConsole();
             const tabel: JlHookTable = {
@@ -166,6 +221,20 @@ describe('Jelly Leon: haakmodule (jlHook)', () => {
                 belofte = hook('testOnbekend', {});
             }).not.toThrow();
             await expect(belofte).resolves.toBeUndefined();
+        });
+    });
+
+    describe('Soort fout (jlHookErrorKind)', () => {
+        it('should give the error name or the type, never the message', () => {
+            expect(jlHookErrorKind(new TypeError(GEHEIM))).toBe('TypeError');
+            expect(jlHookErrorKind(GEHEIM)).toBe('string');
+            expect(jlHookErrorKind(undefined)).toBe('undefined');
+        });
+
+        it('should fall back to "onbekend" when reading the error itself fails', () => {
+            expect(() => jlHookErrorKind(foutMetGooiendeNaam())).not.toThrow();
+            expect(jlHookErrorKind(foutMetGooiendeNaam())).toBe('onbekend');
+            expect(jlHookErrorKind(ingetrokkenProxy())).toBe('onbekend');
         });
     });
 });
