@@ -20,8 +20,9 @@ from conftest import REPO_ROOT, commit_all, init_repo, write
 CONTRACT = "docs/platform-v2/PLATFORM_CONTRACTEN.md"
 CONFORMITEIT = "docs/platform-v2/CONTRACT_1.3_CONFORMITEIT.md"
 HISTORIE = "docs/platform-v2/CONTRACT_1.2_CONFORMITEIT.md"
-#: Bron-commit en sha256 van contract 1.3 zoals gemeten bij het overnemen (2026-11-17, aanvulling C-12). Een tweede, vaste plek: wie de
-#: pin in contract_drift.py stil verandert zonder de kopieën opnieuw te nemen, laat deze test falen.
+#: Bron-commit en sha256 van contract 1.3 zoals gemeten bij het overnemen (2026-11-17, aanvulling C-12).
+#: Een tweede, vaste plek: wie de pin in contract_drift.py stil verandert zonder de kopieën opnieuw te nemen,
+#: laat deze test falen.
 BRON_COMMIT_13 = "e88a290c9ad5fef4acf498d05ad3414395a4fcb5"
 SHA256_13 = {
     CONTRACT: "4712dd62c837c2f2594fa4152a925464f6f7481e898473660f09607cc113c511",

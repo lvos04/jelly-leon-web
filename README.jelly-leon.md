@@ -12,9 +12,9 @@ GPL-2.0-or-later (zie [`LICENSE`](LICENSE)); gebaseerd op Jellyfin, met dank aan
 ## Contractronde 1.3 (2026-11-10) — [`ADR-0012`](docs/adr/ADR-0012-contract-1-3.md)
 
 - [`PLATFORM_CONTRACTEN.md`](docs/platform-v2/PLATFORM_CONTRACTEN.md) (`contracts 1.3`) en
-  [`CONTRACT_1.3_CONFORMITEIT.md`](docs/platform-v2/CONTRACT_1.3_CONFORMITEIT.md) byte-gelijk uit
-  `lvos04/ai-server-manager@02b119cb84be`; de drifttest (`tools/jelly-leon-web/contract_drift.py`) pint ze, met de
-  1.2-lijst als historie (C1.3-JLW-01).
+  [`CONTRACT_1.3_CONFORMITEIT.md`](docs/platform-v2/CONTRACT_1.3_CONFORMITEIT.md): contractkopie byte-gelijk aan
+  `lvos04/ai-server-manager@e88a290` (aanvulling C-12, blijft contracts 1.3); de drifttest
+  (`tools/jelly-leon-web/contract_drift.py`) pint ze, met de 1.2-lijst als historie (C1.3-JLW-01).
 - `EVIDENCE.json` volgt §11 van 1.3 en wordt daarop gecontroleerd in de CI (C1.3-JLW-02): o.a. `Niet getest` alleen
   bij `Niet gestart`, iGPU-bewijs alleen met het hardwarevoorbehoud, elke `NIET GEVALIDEERD` uit `blokkade` ook in
   `validatie`, contractpunten alleen als ze in de gekopieerde lijst staan.

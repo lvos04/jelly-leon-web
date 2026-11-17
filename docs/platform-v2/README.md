@@ -36,7 +36,8 @@ Onbekende NAS-gegevens (D01–D18) worden nooit met voorbeeldwaarden ingevuld; z
 
 - [`PLATFORM_CONTRACTEN.md`](PLATFORM_CONTRACTEN.md) (`contracts 1.3`) en
   [`CONTRACT_1.3_CONFORMITEIT.md`](CONTRACT_1.3_CONFORMITEIT.md) zijn **byte-gelijke kopieën** uit
-  `lvos04/ai-server-manager` (bron van waarheid) op bron-commit `02b119cb84be`; de 1.2-lijst
+  `lvos04/ai-server-manager` (bron van waarheid): contractkopie byte-gelijk aan `ai-server-manager@e88a290`
+  (aanvulling C-12, blijft contracts 1.3); de 1.2-lijst
   [`CONTRACT_1.2_CONFORMITEIT.md`](CONTRACT_1.2_CONFORMITEIT.md) blijft als historie staan, byte-gelijk aan dezelfde
   bron-commit. Nooit hier bewerken: een nieuwe stand overnemen = opnieuw byte-gelijk kopiëren en bron-commit + sha256 in
   `tools/jelly-leon-web/contract_drift.py` bijwerken. De drifttest (`contract_drift.py`, tests in
