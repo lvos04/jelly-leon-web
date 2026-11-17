@@ -50,6 +50,13 @@ describe('Jelly Leon: haakmodule (jlHook)', () => {
             expect(JL_HOOK_HANDLERS).toEqual([]);
         });
 
+        it('should have unique hook names in the handler table (the list form does not stop a duplicate)', () => {
+            // In de lijstvorm wint stil de eerste regel; tsc houdt een dubbele naam niet tegen, deze test wel.
+            const namen = JL_HOOK_HANDLERS.map(([ naam ]) => naam);
+
+            expect(new Set(namen).size).toBe(namen.length);
+        });
+
         it('should return without exception for any name with the real (empty) table', async () => {
             const warn = stilConsole();
 
