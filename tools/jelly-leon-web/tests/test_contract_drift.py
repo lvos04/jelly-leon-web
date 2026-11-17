@@ -20,12 +20,12 @@ from conftest import REPO_ROOT, commit_all, init_repo, write
 CONTRACT = "docs/platform-v2/PLATFORM_CONTRACTEN.md"
 CONFORMITEIT = "docs/platform-v2/CONTRACT_1.3_CONFORMITEIT.md"
 HISTORIE = "docs/platform-v2/CONTRACT_1.2_CONFORMITEIT.md"
-#: Bron-commit en sha256 van contract 1.3 zoals gemeten bij het overnemen (2026-11-10). Een tweede, vaste plek: wie de
+#: Bron-commit en sha256 van contract 1.3 zoals gemeten bij het overnemen (2026-11-17, aanvulling C-12). Een tweede, vaste plek: wie de
 #: pin in contract_drift.py stil verandert zonder de kopieën opnieuw te nemen, laat deze test falen.
-BRON_COMMIT_13 = "02b119cb84be9a307a88532f6692ea8a4bcb12f1"
+BRON_COMMIT_13 = "e88a290c9ad5fef4acf498d05ad3414395a4fcb5"
 SHA256_13 = {
-    CONTRACT: "15b30cf17f91b606451ef9c41f02327076ef76ce655ee94e40e3538106962310",
-    CONFORMITEIT: "f0a2352ddb27088ae668013501c62a1eaaf879efe742a2d4422ffe8d33b43466",
+    CONTRACT: "4712dd62c837c2f2594fa4152a925464f6f7481e898473660f09607cc113c511",
+    CONFORMITEIT: "b5ebba073a8fe8beb715d58e6760feae38e33ad445956d107e64840133dd7924",
     HISTORIE: "634941340afd2d9a55846076ab468ea4aacddb32dd8be6a7b92dd113661d39a4",
 }
 SIBLING_SOURCE = REPO_ROOT.parent / "ai-server-manager"
@@ -228,7 +228,7 @@ def test_main_online_bron_niet_zichtbaar_is_omgevingsfout_geen_drift(monkeypatch
     monkeypatch.setattr(contract_drift.time, "sleep", lambda _s: None)
     assert contract_drift.main(["--repo", str(REPO_ROOT), "--online"]) == 3
     out = capsys.readouterr()
-    assert "geen van de 3 bestanden gevonden in lvos04/ai-server-manager op 02b119cb8" in out.err
+    assert "geen van de 3 bestanden gevonden in lvos04/ai-server-manager op e88a290c9" in out.err
     assert "er is niets vergeleken" in out.err and "in orde" not in out.out and "NIET IN ORDE" not in out.err
     # 404 is een antwoord, geen netwerkfout: één verzoek per bestand, geen herhaling.
     assert len(calls) == len(contract_drift.KOPIEEN)

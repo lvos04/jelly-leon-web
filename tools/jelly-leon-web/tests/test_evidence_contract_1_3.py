@@ -6,13 +6,15 @@ Nieuw in 1.3 ten opzichte van de 1.2-controle (test_patch_register_and_consisten
 - elke `NIET GEVALIDEERD (…)` uit `blokkade` is een lijstwaarde en staat ook in `validatie`; een afwijkende
   schrijfwijze van zo'n reden ontloopt die vergelijking niet maar is zelf een fout;
 - contractpunten (`C1.3-<code>`, `C1.2-<code>`) en reviews (`REVIEW-jelly-leon-web-<onderwerp>`) mogen een eigen regel
-  hebben, met de statussen van het blad Werkpakketten.
+  hebben, met de statussen van het blad Werkpakketten;
+- aanvulling C-12 (C12-6): `NIET GEVALIDEERD (echte Hub)`; de vaste lijst is precies de tabel van §11.
 De laatste test draait de controle op de echte EVIDENCE.json van deze repo (dezelfde controle als de CI-stap).
 """
 
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import check_fork_consistency
@@ -104,8 +106,11 @@ def fouten(repo: Path, *entries: dict) -> list[str]:
         dict(BASIS, validatie="Intel-iGPU-getest (ontwikkelmachine); NIET GEVALIDEERD (hardware)"),
         dict(BASIS, validatie="Sim-getest; Intel-iGPU-getest (ontwikkelmachine); NIET GEVALIDEERD (hardware)"),
         dict(BASIS, status="Niet gestart", validatie="NIET GEVALIDEERD (echte NAS)"),
+        dict(BASIS, validatie="Unit-getest; NIET GEVALIDEERD (echte Hub)",
+             blokkade="Hub-koppeling alleen met de simulator: NIET GEVALIDEERD (echte Hub)"),
     ],
-    ids=["niet-getest", "niet-getest-met-nas", "testrij-niet-gestart", "igpu", "igpu-en-sim", "niet-gestart-nas"],
+    ids=["niet-getest", "niet-getest-met-nas", "testrij-niet-gestart", "igpu", "igpu-en-sim", "niet-gestart-nas",
+         "echte-hub"],
 )
 def test_nieuwe_waarden_van_1_3_zijn_toegestaan(repo, entry):
     assert fouten(repo, entry) == []
@@ -292,6 +297,20 @@ def test_dubbel_contractpunt_faalt(repo):
 
 
 # ------------------------------------------------------------------------------------- de echte stand
+
+
+def test_vaste_lijst_is_de_tabel_van_paragraaf_11():
+    """De vaste lijst volgt het contract: een waarde erbij of eraf zonder contracttekst is rood (C12-6: echte Hub)."""
+    tekst = (REPO_ROOT / "docs/platform-v2/PLATFORM_CONTRACTEN.md").read_text(encoding="utf-8")
+    begin = tekst.index("## 11. Bewijs en Excel")
+    p11 = tekst[begin : tekst.index("## 12.", begin)]
+    in_tabel: set[str] = set()
+    for ruw in p11.splitlines():
+        regel = ruw.strip()
+        if regel.startswith("| `"):
+            in_tabel.update(re.findall(r"`([^`]+)`", regel.split(" | ")[0]))
+    vast = set(check_fork_consistency.VALIDATIE_WAARDEN) | set(check_fork_consistency.VALIDATIE_TESTMATRIX)
+    assert in_tabel == vast, f"verschil met contract §11: {sorted(in_tabel ^ vast)}"
 
 
 def test_echte_conformiteitslijsten_kennen_de_punten_van_deze_repo():

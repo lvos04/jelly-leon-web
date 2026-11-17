@@ -77,6 +77,7 @@ VALIDATIE_WAARDEN = (
     NIET_GEVALIDEERD_HARDWARE,
     "NIET GEVALIDEERD (account)",
     "NIET GEVALIDEERD (Mac/Xcode)",
+    "NIET GEVALIDEERD (echte Hub)",  # aanvulling C-12 (C12-6)
     NIET_GETEST,
 )
 VALIDATIE_TESTMATRIX = ("Sim-geslaagd", "Sim-mislukt")

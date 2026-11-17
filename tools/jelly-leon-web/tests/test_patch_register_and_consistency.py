@@ -256,7 +256,8 @@ def test_evidence_blokkade_staat_ook_in_validatie(repos):
         # 1.3: een samengestelde of zelfbedachte reden is geen lijstwaarde en kan dus nooit in `validatie` staan.
         "docs/platform-v2/EVIDENCE.json[B03-013]: blokkade noemt 'NIET GEVALIDEERD (echte NAS/hardware)', dat is geen "
         "waarde uit de vaste lijst van §11 (kies uit NIET GEVALIDEERD (echte NAS) | NIET GEVALIDEERD (hardware) | "
-        "NIET GEVALIDEERD (account) | NIET GEVALIDEERD (Mac/Xcode); toelichting in 'opmerking')",
+        "NIET GEVALIDEERD (account) | NIET GEVALIDEERD (Mac/Xcode) | NIET GEVALIDEERD (echte Hub); toelichting in "
+        "'opmerking')",
     ]
 
 
